@@ -1,0 +1,136 @@
+Great! Since you're using the **WLASL (Word-Level American Sign Language)** dataset, here is an updated version of the `README.md` with that included:
+
+---
+
+## 🧠 Sign Language to English Sentence Prediction (CNN + Transformer)
+
+This project implements a deep learning model that translates **sign language videos** into **English sentences** using a hybrid **Convolutional Neural Network (CNN)** and **Transformer** architecture. It leverages the **WLASL dataset** for training and evaluation.
+
+---
+
+### 📁 Project Structure
+
+```
+├── cnn+transformer.ipynb     # Main Jupyter Notebook with full pipeline
+├── dataset/                  # WLASL video clips or extracted frames
+├── models/                   # Saved model checkpoints
+├── utils/                    # Utility scripts for preprocessing, evaluation
+├── requirements.txt          # Required packages
+└── README.md                 # Project documentation
+```
+
+---
+
+### 🚀 Features
+
+* ✅ Preprocessing of WLASL video clips
+* ✅ CNN (e.g., MobileNetV2) for feature extraction
+* ✅ Transformer for temporal sequence modeling
+* ✅ Sentence generation from sign sequences
+* ✅ Scalable and modular pipeline for future real-time support
+
+---
+
+### 📦 Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/sign-language-translator.git
+cd sign-language-translator
+```
+
+2. Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate   # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+### 📊 Dataset: WLASL
+
+We use the **WLASL (Word-Level American Sign Language)** dataset, a large-scale dataset with 2,000+ unique signs across thousands of video samples.
+
+* Official Site: [https://github.com/dxli94/WLASL](https://github.com/dxli94/WLASL)
+* Each video represents a single word or phrase from a native ASL signer.
+* You may optionally preprocess the videos into frames stored per word for faster loading.
+
+Example directory structure:
+
+```
+dataset/
+  ├── agree/
+  │     ├── video_001.jpg
+  │     ├── video_002.jpg
+  ├── book/
+  └── ...
+```
+
+---
+
+### 🧪 Usage
+
+1. Launch the notebook:
+
+```bash
+jupyter notebook cnn+transformer.ipynb
+```
+
+2. Inside the notebook:
+
+   * Load WLASL data (video or pre-extracted frames)
+   * Extract features using CNN
+   * Train Transformer model
+   * Predict English words/sentences
+
+---
+
+### 🔧 Model Architecture
+
+* **CNN Backbone**: Extracts spatial features from individual video frames (e.g., using MobileNetV2).
+* **Transformer**: Encodes frame sequences and decodes to English sentence predictions.
+* **Positional Encoding**: Added to maintain temporal order.
+
+---
+
+### 📈 Results
+
+You can add your model evaluation results here, e.g.:
+
+* **Top-1 Accuracy**: 78.4%
+* **BLEU Score**: 0.62
+* Sample Predictions:
+
+  * Sign input: `HELLO`, `MY`, `NAME` → Predicted: `"Hello, my name is..."`
+
+---
+### 📌 Future Improvements
+
+* Expand from word-level to continuous signing
+* Integrate real-time webcam/video stream input
+* Add signer-independent recognition techniques
+
+---
+
+### 🤝 Contributing
+
+Contributions and suggestions are welcome!
+Please open issues or submit PRs if you'd like to improve this project.
+
+---
+
+### 📄 License
+
+MIT License
+
+---
+
+Would you like me to generate a `requirements.txt` for this project as well, based on common dependencies used in CNN + Transformer + WLASL pipelines?
