@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>IndicSignAI Translator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            padding: 40px;
+            max-width: 900px;
+            margin: auto;
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+            border-radius: 10px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .input-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .video-container {
+            flex: 1;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        #videoElement {
+            width: 100%;
+            height: auto;
+        }
+
+        .text-input {
+            flex: 1;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            margin-top: 25px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 18px;
+            line-height: 1.6;
+            min-height: 100px;
+        }
+
+        .output-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .output-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .loading {
+            color: orange;
+            font-style: italic;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>IndicSignAI: Multimodal Translator</h1>
+    
+    <div class="input-section">
+        <div class="video-container">
+            <video id="videoElement" autoplay></video>
+        </div>
+        <div class="text-input">
+            <input type="text" id="inputText" placeholder="Enter English text...">
+            <button onclick="translateText()">Translate Text & Sign</button>
+        </div>
+    </div>
+
+
+
+<div class="translation-section">
+    <h2>Text Translation</h2>
+    <textarea id="translationInput" placeholder="Enter English text..."></textarea>
+    <button onclick="translateText()">Translate</button>
+    <div id="translationResult"></div>
+</div>
+
+<script>
+async function translateText() {
+    const input = document.getElementById("translationInput").value;
+    const output = document.getElementById("translationResult");
+    
+    if (!input.trim()) {
+        output.innerHTML = '<div class="error">Please enter text</div>';
+        return;
+    }
+
+    output.innerHTML = '<div class="loading">Translating...</div>';
+    
+    try {
+        const response = await fetch("/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: input })
+        });
+        
+        const result = await response.json();
+        output.innerHTML = `
+            <div><strong>English:</strong> ${result.english}</div>
+            <div><strong>Assamese:</strong> ${result.assamese}</div>
+        `;
+    } catch (err) {
+        output.innerHTML = '<div class="error">Translation failed</div>';
+    }
+}
+</script>
+
+
+
+    <div id="output"></div>
+
+    <script>
+        // Set up video capture
+        const videoElement = document.getElementById('videoElement');
+        let videoStream = null;
+        
+        // Start camera when page loads
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                videoStream = stream;
+                videoElement.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera:", err);
+                document.getElementById('output').innerHTML = 
+                    '<div class="error">Error: Could not access camera. ' + err.message + '</div>';
+            });
+
+        async function translateText() {
+            const input = document.getElementById("inputText").value;
+            const output = document.getElementById("output");
+
+            if (!input.trim()) {
+                output.innerHTML = '<div class="error">Please enter some text to translate</div>';
+                return;
+            }
+
+            output.innerHTML = '<div class="loading">Processing...</div>';
+
+            try {
+                const response = await fetch("/translate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: input })
+                });
+
+                if (!response.ok) throw new Error("Server error");
+
+                const result = await response.json();
+                
+                let outputHTML = `
+                    <div class="output-item">
+                        <strong>English:</strong> ${result.english || "N/A"}
+                    </div>
+                    <div class="output-item">
+                        <strong>Assamese:</strong> ${result.assamese || "N/A"}
+                    </div>
+                    <div class="output-item">
+                        <strong>Sign Prediction:</strong> ${result.gloss || "N/A"}
+                    </div>
+                `;
+                
+                output.innerHTML = outputHTML;
+            } catch (err) {
+                output.innerHTML = '<div class="error">Error: Could not complete translation.</div>';
+                console.error(err);
+            }
+        }
+
+        // Clean up camera stream when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
