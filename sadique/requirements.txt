@@ -1,0 +1,9 @@
+numpy==1.25.2
+scipy==1.11.1
+torch==2.0.1
+torchvision==0.15.2
+torchaudio==2.0.2
+transformers==4.31.0
+sentencepiece==0.1.99
+opencv-python==4.8.0.76
+flask==2.3.2
