@@ -1,17 +1,13 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
-
-# Load model and tokenizer
 model_name = "facebook/nllb-200-distilled-600M"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-# Define translation pipeline for English to Nepali
 translator = pipeline(
     "translation",
     model=model,
     tokenizer=tokenizer,
-    src_lang="eng_Latn",   # English (Latin script)
-    tgt_lang="npi_Deva"    # Nepali (Devanagari script)
+    src_lang="eng_Latn",   
+    tgt_lang="npi_Deva"  
 )
 
 # Interactive translation loop
