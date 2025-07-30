@@ -7,14 +7,14 @@ from models import SignLanguageModel
 from translation import TranslationModel
 import warnings
 import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN warnings
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # Resolve library conflicts
 
-warnings.filterwarnings("ignore")
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'  # Disable oneDNN warnings
-
-
+# Initialize Flask app first
 app = Flask(__name__)
+
+# Disable warnings
+warnings.filterwarnings("ignore")
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 # Initialize translation model
 translator = TranslationModel()
@@ -55,29 +55,40 @@ def home():
 
 @app.route("/translate", methods=["POST"])
 def translate():
-    data = request.get_json()
-    input_text = data.get("text", "")
-    output = {"english": "", "assamese": "", "gloss": ""}
+    # Get input data
+    input_text = request.form.get("text", "")
+    target_lang = request.form.get("target_lang", "assamese")
+    frames = []
+    
+    # Process uploaded frames if any
+    for key in request.files:
+        if key.startswith('frame_'):
+            file = request.files[key]
+            img = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
+            frames.append(img)
+    
+    # Prepare output - only include the selected language
+    output = {
+        "english": input_text,
+        target_lang: "",  # Only the selected language
+        "gloss": ""
+    }
 
-    # Text translation
+    # Text translation (only selected language)
     if input_text:
-        translated_text = translator.translate(input_text)
-        output["english"] = input_text
-        output["assamese"] = translated_text if translated_text else "Translation failed"
-
-    # Sign language prediction (simulated)
-    try:
-        dummy_frames = [np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8) for _ in range(16)]
-        frames_tensor = preprocess_frames(dummy_frames).unsqueeze(0).to(device)
-        
-        with torch.no_grad():
-            preds = sign_model(frames_tensor)
-            pred_idx = torch.argmax(preds, dim=1).item()
-        
-        output["gloss"] = inv_label_map.get(pred_idx, "Unknown")
-    except Exception as e:
-        print(f"Sign prediction error: {str(e)}")
-        output["gloss"] = "Prediction failed"
+        output[target_lang] = translator.translate(input_text, target_lang=target_lang) or "Translation failed"
+    
+    # Sign language prediction
+    if frames:
+        try:
+            frames_tensor = preprocess_frames(frames).unsqueeze(0).to(device)
+            with torch.no_grad():
+                preds = sign_model(frames_tensor)
+                pred_idx = torch.argmax(preds, dim=1).item()
+            output["gloss"] = inv_label_map.get(pred_idx, "Unknown")
+        except Exception as e:
+            print(f"Sign prediction error: {str(e)}")
+            output["gloss"] = "Prediction failed"
 
     return jsonify(output)
 
