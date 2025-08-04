@@ -10,7 +10,7 @@ translator = pipeline(
     tgt_lang="mar_Deva"    
 )
 
-print("English ➝ Manipuri Translator")
+print("English ➝ Marathi Translator")
 print("Type 'exit' to quit.\n")
 
 while True:
@@ -23,3 +23,4 @@ while True:
         print("Marathi Translation:", result[0]["translation_text"], "\n")
     except Exception as e:
         print("Error:", str(e), "\n")
+
