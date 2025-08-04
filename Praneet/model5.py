@@ -10,7 +10,7 @@ translator = pipeline(
     tgt_lang="ory_Orya"    
 )
 
-print("English ➝ Manipuri Translator")
+print("English ➝ Odia Translator")
 print("Type 'exit' to quit.\n")
 
 while True:
@@ -23,3 +23,4 @@ while True:
         print("Odia Translation:", result[0]["translation_text"], "\n")
     except Exception as e:
         print("Error:", str(e), "\n")
+
