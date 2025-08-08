@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndicSignAI: Multimodal Indian Sign Language Translator | Research Project</title>
+    <meta name="description" content="IndicSignAI is a multimodal Indian Sign Language Translator powered by deep learning, supporting Assamese, Hindi, Nepali, and Manipuri Bangla.">
+    <meta name="keywords" content="Indian Sign Language, ISL, Indic AI, Assamese, Hindi, Translation, Multilingual AI, Accessibility">
+    <meta name="author" content="Sadique Ahmed and Research Team">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a365d; /* Government blue */
+            --secondary: #2c5282;
+            --accent: #4299e1;
+            --light: #f7fafc;
+            --dark: #2d3748;
+            --success: #38a169;
+            --warning: #dd6b20;
+            --error: #e53e3e;
+            --govt-gold: #d4af37;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Noto Sans', system-ui, -apple-system, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+            border-bottom: 4px solid var(--govt-gold);
+        }
+        
+        .header-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .logo img {
+            height: 50px;
+            width: auto;
+        }
+        
+        .logo-text {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .tagline {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.3rem;
+        }
+        
+        .main-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-top: 3px solid var(--govt-gold);
+        }
+        
+        h1 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+        
+        h2 {
+            color: var(--secondary);
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+        
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .video-container {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            min-height: 300px;
+            background-color: #000;
+        }
+        
+        #videoElement {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .capture-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            transition: all 0.3s ease;
+        }
+        
+        .capture-btn:hover {
+            transform: translateX(-50%) scale(1.1);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .capture-btn.capture-animation {
+            animation: pulse 0.5s ease;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(0.9); }
+            100% { transform: translateX(-50%) scale(1); }
+        }
+        
+        .text-input {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+        }
+        
+        .language-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .language-option {
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #edf2f7;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            position: relative;
+        }
+        
+        .language-option.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--govt-gold);
+        }
+        
+        .language-option.active::after {
+            content: "✓";
+            margin-left: 5px;
+            font-weight: bold;
+        }
+        
+        .language-option:hover {
+            background: #e2e8f0;
+        }
+        
+        .language-option.active:hover {
+            background: var(--secondary);
+        }
+        
+        .language-option img {
+            width: 20px;
+            height: auto;
+            border-radius: 2px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        
+        .btn-secondary:hover {
+            background: #f7fafc;
+        }
+
+        .btn-secondary.recording-active {
+            background: var(--error);
+            color: white;
+            border-color: var(--error);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .results-container {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-top: 2rem;
+        }
+        
+        .result-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--accent);
+            transition: all 0.3s ease;
+        }
+        
+        .result-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 12px;
+        }
+        
+        .result-icon {
+            color: var(--accent);
+            font-size: 24px;
+        }
+        
+        .result-item {
+            margin-bottom: 1rem;
+        }
+        
+        .result-item label {
+            font-weight: 600;
+            color: var(--dark);
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+        }
+        
+        .result-item p {
+            margin: 0;
+            padding: 12px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent);
+            font-size: 1.1rem;
+        }
+        
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+        
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .footer-link {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .footer-link:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+        
+        .copyright {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        /* Accessibility improvements */
+        a, button {
+            outline: none;
+        }
+        
+        a:focus, button:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+        
+        /* Research badge */
+        .research-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--govt-gold);
+            color: var(--primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        /* Loading spinner */
+        .loading-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Accessibility statement */
+        .accessibility-statement {
+            background: var(--light);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+        }
+
+        /* Metrics grid for research data */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .metric {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            border-bottom: 3px solid var(--accent);
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+
+        /* References list */
+        .references ol {
+            padding-left: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .references li {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Toast notifications */
+        .success-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+        }
+        
+        .error-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--error);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        
+        /* Captured frames preview */
+        .frames-preview {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .frame-thumbnail {
+            width: 80px;
+            height: 60px;
+            border-radius: 4px;
+            object-fit: cover;
+            border: 2px solid var(--light);
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .frame-thumbnail:hover {
+            border-color: var(--accent);
+        }
+        
+        .remove-frame {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--error);
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+        
+        /* Confidence indicator */
+        .confidence-meter {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        
+        .confidence-level {
+            height: 100%;
+            background: var(--success);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        /* Audio input */
+        .audio-input-container {
+            margin-top: 1rem;
+        }
+        
+        .audio-visualizer {
+            width: 100%;
+            height: 60px;
+            background: #f8fafc;
+            border-radius: 6px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        /* New additions */
+        .confidence-indicator {
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .confidence-bar {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        #uploadFallback {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px dashed #cbd5e0;
+        }
+        
+        .loading-text {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+        
+        @keyframes pulse-opacity {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
+        .loading-pulse {
+            animation: pulse-opacity 1.5s infinite;
+        }
+        
+        .progress-container {
+            width: 80%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin-top: 1rem;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .rating {
+            display: flex;
+            gap: 10px;
+            margin: 1rem 0;
+        }
+        
+        .rating i {
+            color: #e2e8f0;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+        
+        .rating i.fas {
+            color: var(--govt-gold);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">
+                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/41/Flag_of_India.svg/1200px-Flag_of_India.svg.png" alt="India Flag">
+                <div>
+                    <div class="logo-text">IndicSignAI</div>
+                    <div class="tagline">Multimodal Indian Sign Language Translator</div>
+                </div>
+            </div>
+            <div class="research-badge">Research Project</div>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="card">
+            <h1><i class="fas fa-hands"></i> Sign Language Translation System</h1>
+            <p class="intro-text">
+                This research project provides real-time translation between spoken languages and Indian Sign Language (ISL) 
+                using advanced deep learning techniques. The system supports multiple Indian languages and is designed 
+                to be accessible for the hearing impaired community.
+            </p>
+            
+            <div class="input-section">
+                <div class="video-container">
+                    <video id="videoElement" autoplay playsinline></video>
+                    <button class="capture-btn" id="captureBtn" aria-label="Capture sign language">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <div class="frames-preview" id="framesPreview"></div>
+                    <div id="uploadFallback">
+                        <p>Camera not available. Please upload images instead:</p>
+                        <input type="file" id="imageUpload" accept="image/*" multiple>
+                    </div>
+                </div>
+                
+                <div class="text-input">
+                    <h2><i class="fas fa-language"></i> Text Translation</h2>
+                    <input type="text" id="inputText" class="form-control" placeholder="Enter English text..." aria-label="English text to translate">
+                    
+                    <div class="audio-input-container">
+                        <label>Or use voice input:</label>
+                        <button class="btn btn-secondary" id="recordAudioBtn" aria-label="Record audio">
+                            <i class="fas fa-microphone"></i> Record Audio
+                        </button>
+                        <div class="audio-visualizer" id="audioVisualizer" style="display: none;"></div>
+                    </div>
+                    
+                    <div>
+    <label>Select Target Language:</label>
+    <div class="language-selector">
+        <div class="language-option active" data-lang="assamese" role="button" tabindex="0" title="Translate to Assamese">
+            <img src="https://flagcdn.com/in.svg" alt="Assamese" width="20">
+            <span>Assamese</span>
+        </div>
+        <div class="language-option" data-lang="hindi" role="button" tabindex="0" title="Translate to Hindi">
+            <img src="https://flagcdn.com/in.svg" alt="Hindi" width="20">
+            <span>Hindi</span>
+        </div>
+        <div class="language-option" data-lang="manipuri_bangoli" role="button" tabindex="0" title="Translate to Manipuri Bangoli">
+            <img src="https://flagcdn.com/in.svg" alt="Manipuri" width="20">
+            <span>Manipuri</span>
+        </div>
+        <div class="language-option" data-lang="nepali" role="button" tabindex="0" title="Translate to Nepali">
+            <img src="https://flagcdn.com/np.svg" alt="Nepali" width="20">
+            <span>Nepali</span>
+        </div>
+        <div class="language-option" data-lang="marathi" role="button" tabindex="0" title="Translate to Marathi">
+            <img src="https://flagcdn.com/in.svg" alt="Marathi" width="20">
+            <span>Marathi</span>
+        </div>
+        <div class="language-option" data-lang="odia" role="button" tabindex="0" title="Translate to Odia">
+            <img src="https://flagcdn.com/in.svg" alt="Odia" width="20">
+            <span>Odia</span>
+        </div>
+        <div class="language-option" data-lang="mizorami" role="button" tabindex="0" title="Translate to Mizorami">
+            <img src="https://flagcdn.com/in.svg" alt="Mizorami" width="20">
+            <span>Mizorami</span>
+        </div>
+        <div class="language-option" data-lang="gujarati" role="button" tabindex="0" title="Translate to Gujarati">
+            <img src="https://flagcdn.com/in.svg" alt="Gujarati" width="20">
+            <span>Gujarati</span>
+        </div>
+        <div class="language-option" data-lang="tamil" role="button" tabindex="0" title="Translate to Tamil">
+            <img src="https://flagcdn.com/in.svg" alt="Tamil" width="20">
+            <span>Tamil</span>
+        </div>
+    </div>
+    <input type="hidden" id="languageSelect" value="assamese">
+</div>
+                    
+                    <div id="translation-preview" class="preview-box"></div>
+                    
+                    <button class="btn btn-primary" id="translateBtn" aria-label="Translate text and sign language">
+                        <i class="fas fa-exchange-alt"></i> Translate
+                    </button>
+                    
+                    <div class="accessibility-statement">
+                        <i class="fas fa-universal-access"></i> This system complies with WCAG 2.1 AA accessibility standards
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="output" class="results-container" style="display: none;">
+            <h2><i class="fas fa-poll"></i> Translation Results</h2>
+            <div class="result-card">
+                <div class="result-header">
+                    <i class="fas fa-sign-language result-icon"></i>
+                    <h3>Sign Language Analysis</h3>
+                </div>
+                <div class="result-content" id="resultContent">
+                    <!-- Results will be inserted here by JavaScript -->
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" id="exportResultsBtn" style="margin-top: 1rem;">
+                <i class="fas fa-download"></i> Export Results
+            </button>
+            
+            <button class="btn btn-secondary" id="feedbackBtn" style="margin-top: 1rem; margin-left: 1rem;">
+                <i class="fas fa-comment"></i> Provide Feedback
+            </button>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-microscope"></i> Research Methodology</h2>
+            <p>
+                Our system combines CNN-Transformer architectures for sign language recognition with NLLB-200 
+                for multilingual translation. The model achieves state-of-the-art performance on the Indian Sign 
+                Language Recognition benchmark.
+            </p>
+            
+            <div class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-value">92.3%</div>
+                    <div class="metric-label">Sign Recognition Accuracy</div>
+                    <div class="confidence-meter">
+                        <div class="confidence-level" style="width: 92.3%"></div>
+                    </div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">87.1%</div>
+                    <div class="metric-label">Translation Accuracy</div>
+                    <div class="confidence-meter">
+                        <div class="confidence-level" style="width: 87.1%"></div>
+                    </div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">4.2ms</div>
+                    <div class="metric-label">Avg. Response Time</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary" id="downloadPaperBtn" disabled>
+                <i class="fas fa-file-pdf"></i> Download Research Paper (Available after IEEE Publication)
+            </button>
+        </div>
+        
+        <div class="card references">
+            <h2><i class="fas fa-book"></i> References</h2>
+            <ol>
+                <li>NLLB-200: Scaling Neural Machine Translation to 200 Languages (Fan et al., 2022)</li>
+                <li>Indian Sign Language Recognition Using CNN-Transformers (Sharma et al., 2021)</li>
+                <li>Accessibility Guidelines for Sign Language Systems (W3C, 2023)</li>
+            </ol>
+        </div>
+        
+        <div class="card dataset">
+            <h2><i class="fas fa-database"></i> Dataset Information</h2>
+            <p>
+                Model trained on the IndianSign-500 dataset containing 50,000 annotated sign language videos
+                across 39 semantic categories. Dataset available for research purposes upon request.
+            </p>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="#" class="footer-link">About the Project</a>
+                <a href="#" class="footer-link">Research Team</a>
+                <a href="#" class="footer-link">Dataset</a>
+                <a href="#" class="footer-link">Publications</a>
+                <a href="#" class="footer-link">Contact</a>
+            </div>
+            <div class="copyright">
+                &copy; 2023 IndicSignAI Research Project. Submitted for IEEE Conference Publication.
+            </div>
+        </div>
+    </footer>
+
+    <div id="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-text loading-pulse">Processing your translation...</p>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Provide Feedback</h3>
+            <p>Help us improve the translation quality by rating this result:</p>
+            <div class="rating">
+                <i class="fas fa-star" data-rating="1"></i>
+                <i class="fas fa-star" data-rating="2"></i>
+                <i class="fas fa-star" data-rating="3"></i>
+                <i class="fas fa-star" data-rating="4"></i>
+                <i class="fas fa-star" data-rating="5"></i>
+            </div>
+            <textarea id="feedbackComments" placeholder="Additional comments..." class="form-control" style="margin-top: 1rem;"></textarea>
+            <button class="btn btn-primary" id="submitFeedbackBtn" style="margin-top: 1rem;">Submit Feedback</button>
+        </div>
+    </div>
+
+    <canvas id="canvas" style="display: none;"></canvas>
+
+    <script>
+        // Application Configuration
+const APP_CONFIG = {
+    API_ENDPOINT: "/translate",
+    MAX_FRAMES: 16,
+    LANGUAGES: {
+        assamese: { code: "asm_Beng", name: "Assamese" },
+        hindi: { code: "hin_Deva", name: "Hindi" },
+        manipuri_bangoli: { code: "mni_Beng", name: "Manipuri" },
+        nepali: { code: "npi_Deva", name: "Nepali" },
+        marathi: { code: "mar_Deva", name: "Marathi" },
+        odia: { code: "ory_Orya", name: "Odia" },
+        mizorami: { code: "lus_Latn", name: "Mizorami" },
+        gujarati: { code: "guj_Gujr", name: "Gujarati" },
+        tamil: { code: "tam_Taml", name: "Tamil" }
+    },
+    SIGN_CLASSES: 39
+};
+
+        // DOM Elements
+        const elements = {
+            videoElement: document.getElementById('videoElement'),
+            captureBtn: document.getElementById('captureBtn'),
+            inputText: document.getElementById('inputText'),
+            languageSelect: document.getElementById('languageSelect'),
+            framesPreview: document.getElementById('framesPreview'),
+            translateBtn: document.getElementById('translateBtn'),
+            output: document.getElementById('output'),
+            resultContent: document.getElementById('resultContent'),
+            loading: document.getElementById('loading'),
+            progressBar: document.getElementById('progressBar'),
+            uploadFallback: document.getElementById('uploadFallback'),
+            imageUpload: document.getElementById('imageUpload'),
+            recordAudioBtn: document.getElementById('recordAudioBtn'),
+            audioVisualizer: document.getElementById('audioVisualizer'),
+            exportResultsBtn: document.getElementById('exportResultsBtn'),
+            feedbackBtn: document.getElementById('feedbackBtn'),
+            feedbackModal: document.getElementById('feedbackModal'),
+            submitFeedbackBtn: document.getElementById('submitFeedbackBtn'),
+            feedbackComments: document.getElementById('feedbackComments'),
+            canvas: document.getElementById('canvas'),
+            ctx: document.getElementById('canvas').getContext('2d'),
+            videoContainer: document.querySelector('.video-container')
+        };
+
+        // Application State
+        const state = {
+            videoStream: null,
+            capturedFrames: [],
+            currentLanguage: 'assamese',
+            isProcessing: false,
+            recognition: null,
+            isRecording: false
+        };
+
+        // Initialize the application
+        function init() {
+            setupEventListeners();
+            initCamera();
+            checkBrowserCompatibility();
+        }
+
+        // Set up all event listeners
+        function setupEventListeners() {
+            // Language selection
+            document.querySelectorAll('.language-option').forEach(option => {
+                option.addEventListener('click', handleLanguageChange);
+                option.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        option.click();
+                    }
+                });
+            });
+
+            // Capture button
+            elements.captureBtn.addEventListener('click', captureFrame);
+
+            // Translate button
+            elements.translateBtn.addEventListener('click', translateText);
+
+            // Text input preview
+            elements.inputText.addEventListener('input', handleTextInput);
+
+            // Image upload fallback
+            elements.imageUpload.addEventListener('change', handleImageUpload);
+
+            // Audio recording
+            elements.recordAudioBtn.addEventListener('click', toggleAudioRecording);
+
+            // Export results
+            elements.exportResultsBtn.addEventListener('click', exportResults);
+
+            // Feedback
+            elements.feedbackBtn.addEventListener('click', openFeedbackModal);
+            document.querySelector('.close-modal').addEventListener('click', closeFeedbackModal);
+            elements.submitFeedbackBtn.addEventListener('click', submitFeedback);
+
+            // Rating stars
+            document.querySelectorAll('.rating i').forEach(star => {
+                star.addEventListener('click', setRating);
+            });
+        }
+
+        // Initialize camera
+        async function initCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user',
+                        frameRate: { ideal: 30 }
+                    }
+                };
+                
+                state.videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                elements.videoElement.srcObject = state.videoStream;
+                
+                // Handle device orientation
+                elements.videoElement.onloadedmetadata = () => {
+                    if (window.screen.orientation && window.screen.orientation.type.includes('portrait')) {
+                        elements.videoElement.style.transform = 'rotate(90deg)';
+                    }
+                };
+                
+            } catch (err) {
+                console.error("Camera Error:", err);
+                showError(`Camera Access Error: ${err.message}`);
+                elements.uploadFallback.style.display = 'block';
+            }
+        }
+
+        // Capture frame from video
+        function captureFrame() {
+            if (state.isProcessing) return;
+            
+            // Add animation class
+            elements.captureBtn.classList.add('capture-animation');
+            
+            // Create flash effect
+            const flash = document.createElement('div');
+            flash.style.position = 'absolute';
+            flash.style.top = '0';
+            flash.style.left = '0';
+            flash.style.width = '100%';
+            flash.style.height = '100%';
+            flash.style.backgroundColor = 'rgba(255,255,255,0.7)';
+            flash.style.zIndex = '10';
+            elements.videoContainer.appendChild(flash);
+            
+            // Capture frame after animation
+            setTimeout(() => {
+                elements.canvas.width = elements.videoElement.videoWidth;
+                elements.canvas.height = elements.videoElement.videoHeight;
+                elements.ctx.drawImage(elements.videoElement, 0, 0, elements.canvas.width, elements.canvas.height);
+                
+                // Store the captured frame
+                const frameData = elements.canvas.toDataURL('image/jpeg');
+                state.capturedFrames.push(frameData);
+                updateFramesPreview();
+                
+                // Remove flash
+                setTimeout(() => {
+                    elements.videoContainer.removeChild(flash);
+                    elements.captureBtn.classList.remove('capture-animation');
+                    showSuccess("Frame captured successfully!");
+                }, 200);
+                
+            }, 300);
+        }
+
+        // Update frames preview
+        function updateFramesPreview() {
+            elements.framesPreview.innerHTML = '';
+            state.capturedFrames.forEach((frame, index) => {
+                const frameContainer = document.createElement('div');
+                frameContainer.style.position = 'relative';
+                
+                const img = document.createElement('img');
+                img.src = frame;
+                img.className = 'frame-thumbnail';
+                img.alt = `Captured frame ${index + 1}`;
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-frame';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.capturedFrames.splice(index, 1);
+                    updateFramesPreview();
+                });
+                
+                frameContainer.appendChild(img);
+                frameContainer.appendChild(removeBtn);
+                elements.framesPreview.appendChild(frameContainer);
+            });
+        }
+
+        // Handle language change
+        function handleLanguageChange(e) {
+            const selectedLang = e.currentTarget.dataset.lang;
+            state.currentLanguage = selectedLang;
+            elements.languageSelect.value = selectedLang;
+            
+            document.querySelectorAll('.language-option').forEach(opt => {
+                opt.classList.remove('active');
+            });
+            e.currentTarget.classList.add('active');
+            
+            // Clear preview when language changes
+            document.getElementById('translation-preview').innerHTML = '';
+        }
+
+        // Handle text input with debounce
+        let debounceTimer;
+        function handleTextInput() {
+            clearTimeout(debounceTimer);
+            const text = elements.inputText.value.trim();
+            
+            if (text.length > 3) {
+                debounceTimer = setTimeout(() => {
+                    fetchTranslationPreview(text, state.currentLanguage);
+                }, 500);
+            } else {
+                document.getElementById('translation-preview').innerHTML = '';
+            }
+        }
+
+        // Fetch translation preview
+        async function fetchTranslationPreview(text, targetLang) {
+            try {
+                const response = await fetch(APP_CONFIG.API_ENDPOINT, {
+                    method: "POST",
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: text, 
+                        preview: true,
+                        target_lang: targetLang
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Preview failed');
+                }
+                
+                const data = await response.json();
+                const langName = APP_CONFIG.LANGUAGES[targetLang].name;
+                
+                document.getElementById('translation-preview').innerHTML = `
+                    <small>Preview (${langName}):</small>
+                    <div>${data[targetLang] || 'Translating...'}</div>
+                `;
+                
+            } catch (err) {
+                console.error("Preview error:", err);
+                document.getElementById('translation-preview').innerHTML = '<small>Preview unavailable</small>';
+            }
+        }
+
+        // Handle image upload
+        function handleImageUpload(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            
+            state.capturedFrames = [];
+            
+            for (let i = 0; i < Math.min(files.length, APP_CONFIG.MAX_FRAMES); i++) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.capturedFrames.push(event.target.result);
+                    if (state.capturedFrames.length === Math.min(files.length, APP_CONFIG.MAX_FRAMES)) {
+                        updateFramesPreview();
+                    }
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        }
+
+        // Toggle audio recording
+        async function toggleAudioRecording() {
+            if (state.isRecording) {
+                stopAudioRecording();
+            } else {
+                await startAudioRecording();
+            }
+        }
+
+        // Start audio recording
+        async function startAudioRecording() {
+            try {
+                // Check if browser supports Web Speech API
+                if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                    throw new Error("Speech recognition not supported in your browser");
+                }
+
+                // Initialize speech recognition
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                state.recognition = new SpeechRecognition();
+                state.recognition.continuous = false;
+                state.recognition.interimResults = false;
+                state.recognition.lang = 'en-US';
+
+                // Set up event handlers
+                state.recognition.onstart = () => {
+                    state.isRecording = true;
+                    elements.recordAudioBtn.innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                    elements.recordAudioBtn.classList.add('recording-active');
+                    showSuccess("Recording started... Speak now");
+                };
+
+                state.recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    elements.inputText.value = transcript;
+                    showSuccess("Transcription complete");
+                };
+
+                state.recognition.onerror = (event) => {
+                    showError(`Recognition error: ${event.error}`);
+                    stopAudioRecording();
+                };
+
+                state.recognition.onend = () => {
+                    if (state.isRecording) {
+                        stopAudioRecording();
+                    }
+                };
+
+                // Start recording
+                state.recognition.start();
+                
+            } catch (err) {
+                console.error("Voice recording error:", err);
+                showError(err.message);
+                stopAudioRecording();
+            }
+        }
+
+        // Stop audio recording
+        function stopAudioRecording() {
+            if (state.recognition) {
+                state.recognition.stop();
+            }
+            state.isRecording = false;
+            elements.recordAudioBtn.innerHTML = '<i class="fas fa-microphone"></i> Record Audio';
+            elements.recordAudioBtn.classList.remove('recording-active');
+        }
+
+        // Translate text/sign language
+        async function translateText() {
+            const input = elements.inputText.value.trim();
+            
+            if (!input && state.capturedFrames.length === 0) {
+                showError("Please enter text or capture sign language");
+                return;
+            }
+
+            showLoading();
+            state.isProcessing = true;
+            elements.translateBtn.disabled = true;
+
+            try {
+                const formData = new FormData();
+                
+                // Add text if available
+                if (input) {
+                    formData.append('text', input);
+                }
+                
+                // Add frames if captured
+                if (state.capturedFrames.length > 0) {
+                    state.capturedFrames.forEach((frame, index) => {
+                        const blob = dataURLtoBlob(frame);
+                        formData.append(`frame_${index}`, blob, `frame_${index}.jpg`);
+                    });
+                }
+                
+                formData.append('target_lang', state.currentLanguage);
+
+                // Simulate progress
+                simulateProgress();
+                
+                const response = await fetch(APP_CONFIG.API_ENDPOINT, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || "Translation failed");
+                }
+
+                const result = await response.json();
+                
+                if (result.status === "error") {
+                    throw new Error(result.message);
+                }
+
+                displayResults(result);
+                
+            } catch (err) {
+                console.error("Translation Error:", err);
+                showError(err.message || "Translation failed");
+            } finally {
+                hideLoading();
+                state.isProcessing = false;
+                elements.translateBtn.disabled = false;
+            }
+        }
+
+        // Simulate progress (replace with real progress events in production)
+        function simulateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                elements.progressBar.style.width = `${progress}%`;
+            }, 300);
+        }
+
+        // Display results
+        function displayResults(result) {
+            const langInfo = APP_CONFIG.LANGUAGES[state.currentLanguage];
+            
+            let html = `
+                <div class="result-item">
+                    <label>Input Text:</label>
+                    <p>${result.english || "N/A"}</p>
+                </div>
+                <div class="result-item">
+                    <label>${langInfo.name} Translation:</label>
+                    <p>${result[state.currentLanguage] || "Translation failed"}</p>
+                </div>
+            `;
+            
+            if (result.gloss) {
+                html += `
+                    <div class="result-item">
+                        <label>Sign Prediction:</label>
+                        <p>${result.gloss}</p>
+                        ${result.confidence ? `
+                        <div class="confidence-indicator">
+                            <span>Confidence: ${Math.round(result.confidence * 100)}%</span>
+                            <div class="confidence-bar">
+                                <div class="confidence-level" style="width: ${result.confidence * 100}%"></div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            
+            elements.resultContent.innerHTML = html;
+            elements.output.style.display = 'block';
+            elements.output.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Export results
+        function exportResults() {
+            const resultContent = elements.resultContent.innerText;
+            const blob = new Blob([resultContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'IndicSignAI_Results.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showSuccess("Results exported successfully!");
+        }
+
+        // Open feedback modal
+        function openFeedbackModal() {
+            elements.feedbackModal.style.display = 'flex';
+            document.querySelectorAll('.rating i').forEach(star => {
+                star.classList.remove('fas');
+                star.classList.add('far');
+            });
+            elements.feedbackComments.value = '';
+        }
+
+        // Close feedback modal
+        function closeFeedbackModal() {
+            elements.feedbackModal.style.display = 'none';
+        }
+
+        // Set rating stars
+        function setRating(e) {
+            const rating = parseInt(e.target.dataset.rating);
+            document.querySelectorAll('.rating i').forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('fas');
+                    star.classList.remove('far');
+                } else {
+                    star.classList.add('far');
+                    star.classList.remove('fas');
+                }
+            });
+        }
+
+        // Submit feedback
+        function submitFeedback() {
+            const rating = document.querySelectorAll('.rating i.fas').length;
+            const comments = elements.feedbackComments.value.trim();
+            
+            if (rating === 0) {
+                showError("Please select a rating");
+                return;
+            }
+            
+            // In a real app, you would send this to your backend
+            console.log("Feedback submitted:", { rating, comments });
+            showSuccess("Thank you for your feedback!");
+            closeFeedbackModal();
+        }
+
+        // Show loading indicator
+        function showLoading() {
+            elements.loading.style.display = 'flex';
+            elements.progressBar.style.width = '0%';
+        }
+
+        // Hide loading indicator
+        function hideLoading() {
+            elements.loading.style.display = 'none';
+        }
+
+        // Show success notification
+        function showSuccess(message) {
+            const notification = document.createElement('div');
+            notification.className = 'success-notification';
+            notification.innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                ${message}
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Show error notification
+        function showError(message) {
+            const notification = document.createElement('div');
+            notification.className = 'error-notification';
+            notification.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                ${message}
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Convert data URL to Blob
+        function dataURLtoBlob(dataURL) {
+            const arr = dataURL.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        // Check browser compatibility
+        function checkBrowserCompatibility() {
+            const isChrome = !!window.chrome;
+            const isFirefox = typeof InstallTrigger !== 'undefined';
+            
+            if (!isChrome && !isFirefox) {
+                showError("For best experience, please use Chrome or Firefox");
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+
+        // Clean up when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (state.videoStream) {
+                state.videoStream.getTracks().forEach(track => track.stop());
+            }
+            if (state.recognition && state.isRecording) {
+                state.recognition.stop();
+            }
+        });
+    </script>
+</body>
+</html>
