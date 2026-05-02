@@ -1,0 +1,45 @@
+38:         'assamese': 'নমস্কাৰ', 'hindi': 'नमस्ते', 'manipuri': 'ꯑꯍꯥꯟꯕ',
+39:         'nepali': 'नमस्ते', 'meitei_lon': 'ꯑꯍꯥꯟꯕ', 'marathi': 'नमस्कार',
+40:         'tamil': 'வணக்கம்', 'bengali': 'হ্যালো', 'dzongkha': 'ཡ་ཨ་ན',
+41:         'mizorami': 'Chibai', 'odia': 'ନମସ୍କাৰ'
+44:         'assamese': 'নমস্কাৰ', 'hindi': 'नमस्ते', 'manipuri': 'ꯍꯥꯏ',
+45:         'nepali': 'नमस्ते', 'meitei_lon': 'ꯍꯥꯏ', 'tamil': 'வணக்கம்',
+46:         'dzongkha': 'ཡ་ཨ་ན'
+49:         'assamese': 'নমস্কাৰ', 'hindi': 'नमस्ते', 'manipuri': 'ꯅꯃꯁ꯭ꯇꯦ',
+50:         'nepali': 'नमस्ते', 'meitei_lon': 'ꯅꯃꯁ꯭ꯇꯦ', 'dzongkha': 'ཞུ་གསོལ'
+53:         'assamese': 'ধন্যবাদ', 'hindi': 'धन्यवाद', 'manipuri': 'ꯊꯥꯠꯆꯔꯤ',
+54:         'nepali': 'धन्यवाद', 'meitei_lon': 'ꯊꯥꯠꯆꯔꯤ', 'marathi': 'धन्यवाद',
+55:         'tamil': 'நன்றி', 'bengali': 'ধন্যবাদ', 'dzongkha': 'བཀའ་དྲིན་ཆེ',
+56:         'mizorami': 'Lawmthu', 'odia': 'ଧନ୍ୟବାଦ'
+59:         'assamese': 'শুভ ৰাতিপুৱা', 'hindi': 'শুভ প্রভাত', 'manipuri': 'ꯑꯍꯥꯟꯕ ꯑꯌꯨꯛ',
+60:         'nepali': 'শুভ বিহান', 'meitei_lon': 'ꯑꯍꯥꯟꯕ ꯑꯌꯨꯛ', 'tamil': 'காலை வணக்கம்',
+61:         'dzongkha': 'ང་ག་དྲོ་པ་བདེ་ལེགས', 'mizorami': 'Chibai', 'odia': 'ସୁପ୍ରଭାତ'
+64:         'assamese': 'আপোনাৰ কেনে আছে', 'hindi': 'आप कैसे हैं', 'manipuri': 'ꯑꯗꯣꯝ ꯀꯝꯗꯧꯔꯤ',
+65:         'nepali': 'तपाईंलाई कस्तो छ', 'meitei_lon': 'ꯑꯗꯣꯝ ꯀꯝꯗꯧꯔꯤ', 'tamil': 'நீங்கள் எப்படி இருக்கிறீர்கள்',
+66:         'dzongkha': 'ག་དེ་འབད་ཡོད་', 'mizorami': 'I dam em?', 'odia': 'କେମିତି ଅଛନ୍ତି'
+69:         'assamese': 'পানী', 'hindi': 'पानी', 'manipuri': 'ꯏꯁꯤꯡ',
+70:         'nepali': 'पानी', 'meitei_lon': 'ꯏꯁꯤꯡ', 'tamil': 'தண்ணீர்',
+71:         'dzongkha': 'ཆུ', 'mizorami': 'Tui', 'odia': 'ପାଣି'
+74:         'assamese': 'খাদ্য', 'hindi': 'भोजन', 'manipuri': 'ꯆꯥ',
+75:         'nepali': 'खाना', 'meitei_lon': 'ꯆꯥ', 'tamil': 'உணவு',
+76:         'dzongkha': 'ཟ་བ', 'mizorami': 'Ei', 'odia': 'ଖାଦ୍ୟ'
+79:         'assamese': 'সহায়', 'hindi': 'मदদ', 'manipuri': 'ꯃꯇꯦꯡ',
+80:         'nepali': 'मद्दत', 'meitei_lon': 'ꯃꯇꯦꯡ', 'tamil': 'உதவி',
+81:         'dzongkha': 'རོགས་པ', 'odia': 'ସହାୟତା'
+84:         'assamese': 'হয়', 'hindi': 'हाँ', 'manipuri': 'ꯍꯣꯏ',
+85:         'nepali': 'हो', 'meitei_lon': 'ꯍꯣꯏ', 'tamil': 'ஆம்',
+86:         'dzongkha': 'ཨིན', 'odia': 'ହଁ'
+89:         'assamese': 'নহয়', 'hindi': 'नहीं', 'manipuri': 'ꯅꯠꯇꯦ',
+90:         'nepali': 'होइन', 'meitei_lon': 'ꯅꯠꯇꯦ', 'tamil': 'இல்லை',
+91:         'dzongkha': 'མེན', 'odia': 'ନାଁ'
+94:         'assamese': 'অনুগ্ৰহ কৰি', 'hindi': 'कृपया', 'manipuri': 'ꯆꯥꯟꯕꯤꯗꯨꯅꯥ',
+95:         'nepali': 'कृपया', 'meitei_lon': 'ꯆꯥꯟꯕꯤꯗꯨꯅꯥ', 'tamil': 'தயவு செய்து',
+96:         'dzongkha': 'གུ་མ་ཞུ་ག', 'odia': 'ଦୟାକରି'
+99:         'assamese': 'দুঃখিত', 'hindi': 'क्षमा करें', 'manipuri': 'ꯁꯣꯔꯤ',
+100:         'nepali': 'माफ गर्नुहोस्', 'meitei_lon': 'ꯁꯣꯔꯤ', 'tamil': 'மன்னிக்கவும்',
+101:         'dzongkha': 'དགོངས་མ་ཚོམ', 'odia': 'ଦୁଃଖିତ'
+181: # Common ISL sentence pattern templates (SOV → SVO etc.)
+183:     # (normalised input tuple) → corrected English
+245:       3. Apply grammar rules (SOV→SVO, articles, tense)
+305:     # --- Rule 3: SOV → SVO reordering ---
+386:     # Rule-based: silent-e → drop e, add -ing

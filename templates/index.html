@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndicSignAI - Breaking Barriers, Building Bridges</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="landing-page">
+    <!-- Animated Background -->
+    <div class="animated-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="nav-ishaara">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">
+                <i class="fa-solid fa-hands-asl-interpreting"></i>
+                <span>IndicSignAI</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#demo" class="nav-link">Demo</a>
+                <a href="#languages" class="nav-link">Languages</a>
+                <a href="#about" class="nav-link">About</a>
+                <a href="/app" class="nav-cta">Get Started</a>
+            </div>
+            <button class="mobile-menu-btn">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-grid">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i class="fa-solid fa-sparkles"></i>
+                    <span>AI-Powered Sign Language Translation</span>
+                </div>
+                <h1 class="hero-title">
+                    Breaking Barriers,<br>
+                    <span class="gradient-text">Building Bridges</span>
+                </h1>
+                <p class="hero-subtitle">
+                    Translate Indian Sign Language to text and vice versa in real-time.
+                    Supporting 5 regional languages across India.
+                </p>
+                <div class="hero-buttons">
+                    <a href="/app" class="btn-primary btn-large">
+                        <i class="fa-solid fa-play"></i>
+                        Start Translating
+                    </a>
+                    <a href="#demo" class="btn-secondary btn-large">
+                        <i class="fa-solid fa-eye"></i>
+                        Watch Demo
+                    </a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">178+</span>
+                        <span class="stat-label">Signs Supported</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">5</span>
+                        <span class="stat-label">Languages</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">95%</span>
+                        <span class="stat-label">Accuracy</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="mockup-content">
+                            <div class="mockup-camera">
+                                <i class="fa-solid fa-hand"></i>
+                                <div class="scan-line"></div>
+                            </div>
+                            <div class="mockup-text">HELLO</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features-section">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Features</span>
+                <h2 class="section-title">Everything You Need</h2>
+                <p class="section-subtitle">Comprehensive sign language translation tools for everyone</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <h3>Real-time Detection</h3>
+                    <p>Instantly recognize and translate sign language gestures using your camera with AI-powered
+                        accuracy.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-language"></i>
+                    </div>
+                    <h3>5 Regional Languages</h3>
+                    <p>Translate to and from Assamese, Hindi, Meitei (Manipuri), Nepali, and Dzongkha.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <h3>AI-Powered</h3>
+                    <p>Advanced machine learning models trained on thousands of sign language samples for high accuracy.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-universal-access"></i>
+                    </div>
+                    <h3>Accessible Design</h3>
+                    <p>Built with accessibility in mind, featuring voice input, text-to-speech, and intuitive interface.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h3>Lightning Fast</h3>
+                    <p>Get translations in milliseconds with our optimized models running locally on your device.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <h3>Privacy First</h3>
+                    <p>All processing happens locally. Your video and data never leave your device.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section id="demo" class="demo-section">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Live Demo</span>
+                <h2 class="section-title">See It In Action</h2>
+                <p class="section-subtitle">Experience the power of AI-driven sign language translation</p>
+            </div>
+            <div class="demo-container">
+                <div class="demo-modes">
+                    <button class="demo-mode active" data-mode="sign-to-text">
+                        <i class="fa-solid fa-hand"></i>
+                        Sign to Text
+                    </button>
+                    <button class="demo-mode" data-mode="text-to-sign">
+                        <i class="fa-solid fa-keyboard"></i>
+                        Text to Sign
+                    </button>
+                </div>
+                <div class="demo-display">
+                    <div class="demo-sign-to-text active">
+                        <div class="demo-camera-preview">
+                            <div class="demo-hand-animation">
+                                <div class="hand-figure">
+                                    <div class="palm"></div>
+                                    <div class="finger finger-1"></div>
+                                    <div class="finger finger-2"></div>
+                                    <div class="finger finger-3"></div>
+                                    <div class="finger finger-4"></div>
+                                    <div class="thumb"></div>
+                                </div>
+                            </div>
+                            <div class="demo-scan-effect"></div>
+                        </div>
+                        <div class="demo-result">
+                            <span class="demo-label">Detected Sign:</span>
+                            <span class="demo-value">HELLO</span>
+                            <span class="demo-confidence">98% confidence</span>
+                        </div>
+                    </div>
+                    <div class="demo-text-to-sign">
+                        <div class="demo-input-area">
+                            <input type="text" class="demo-input" placeholder="Type something..." value="Thank you">
+                            <button class="demo-translate-btn">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="demo-avatar-display">
+                            <div class="sign-avatar">
+                                <div class="avatar-figure">
+                                    <div class="head"></div>
+                                    <div class="body"></div>
+                                    <div class="arm arm-right">
+                                        <div class="forearm">
+                                            <div class="hand">
+                                                <div class="fingers"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="avatar-caption">THANK YOU</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Languages Section -->
+    <section id="languages" class="languages-section">
+        <div class="section-container">
+            <div class="section-header">
+                <span class="section-badge">Supported Languages</span>
+                <h2 class="section-title">5 Regional Languages</h2>
+                <p class="section-subtitle">Bridging communication gaps across India's diverse linguistic landscape</p>
+            </div>
+            <div class="languages-grid">
+                <div class="language-card">
+                    <span class="language-flag">🇮🇳</span>
+                    <span class="language-name">Assamese</span>
+                    <span class="language-native">অসমীয়া</span>
+                </div>
+                <div class="language-card">
+                    <span class="language-flag">🇮🇳</span>
+                    <span class="language-name">Hindi</span>
+                    <span class="language-native">हिन्दी</span>
+                </div>
+                <div class="language-card">
+                    <span class="language-flag">🇮🇳</span>
+                    <span class="language-name">Manipuri / Meitei</span>
+                    <span class="language-native">ꯃꯤꯇꯩꯂꯣꯟ</span>
+                </div>
+                <div class="language-card">
+                    <span class="language-flag">🇳🇵</span>
+                    <span class="language-name">Nepali</span>
+                    <span class="language-native">नेपाली</span>
+                </div>
+                <div class="language-card">
+                    <span class="language-flag">🇧🇹</span>
+                    <span class="language-name">Dzongkha</span>
+                    <span class="language-native">རྫོང་ཁ</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="section-container">
+            <div class="cta-content">
+                <h2 class="cta-title">Ready to Break Barriers?</h2>
+                <p class="cta-subtitle">Start communicating without boundaries today</p>
+                <a href="/app" class="btn-primary btn-large btn-glow">
+                    <i class="fa-solid fa-rocket"></i>
+                    Launch App
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-ishaara">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <a href="/" class="footer-logo">
+                    <i class="fa-solid fa-hands-asl-interpreting"></i>
+                    <span>IndicSignAI</span>
+                </a>
+                <p>Breaking barriers, building bridges through AI-powered sign language translation.</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4>Product</h4>
+                    <a href="/app">Web App</a>
+                    <a href="#features">Features</a>
+                    <a href="#demo">Demo</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Resources</h4>
+                    <a href="#languages">Languages</a>
+                    <a href="#about">About ISL</a>
+                    <a href="#">Documentation</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Connect</h4>
+                    <a href="#"><i class="fa-brands fa-github"></i> GitHub</a>
+                    <a href="#"><i class="fa-brands fa-twitter"></i> Twitter</a>
+                    <a href="#"><i class="fa-brands fa-linkedin"></i> LinkedIn</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 IndicSignAI. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+    // Navbar scroll effect
+    window.addEventListener('scroll', () => {
+        const nav = document.querySelector('.nav-ishaara');
+        if (nav) nav.classList.toggle('scrolled', window.scrollY > 60);
+    });
+
+    // Demo tab switching
+    document.querySelectorAll('.demo-mode').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.mode;
+            document.querySelectorAll('.demo-mode').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelector('.demo-sign-to-text').classList.toggle('active', mode === 'sign-to-text');
+            document.querySelector('.demo-text-to-sign').classList.toggle('active', mode === 'text-to-sign');
+        });
+    });
+
+    // Mobile menu toggle
+    document.querySelector('.mobile-menu-btn')?.addEventListener('click', () => {
+        document.querySelector('.nav-links')?.classList.toggle('open');
+    });
+    </script>
+</body>
+</html>

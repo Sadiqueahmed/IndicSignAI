@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+sign_env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+temp_audio.wav
+
+# Model files (large)
+*.h5
+*.keras
+!ISL_IMAGE.keras/
+
+# Archive (keep but don't track new files)
+archive/temp/
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Training data (large files)
+training/data/*.npy
+training/data/*.csv

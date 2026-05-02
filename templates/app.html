@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndicSignAI  -  Real-Time Sign Language Translation</title>
+    <meta name="description" content="Two-way real-time Indian Sign Language translator with regional language support">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Bengali&family=Noto+Sans+Devanagari&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Gujarati&family=Noto+Sans+Oriya&display=swap"
+        rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+    <!-- ===== PRELOADER SPLASH SCREEN ===== -->
+    <div class="preloader" id="preloader">
+        <div class="preloader-logo">
+            <i class="fa-solid fa-hands-asl-interpreting"></i>
+        </div>
+        <div class="preloader-brand">IndicSignAI</div>
+        <div class="preloader-version">v2.0 - Real-Time Sign Translation</div>
+        <div class="preloader-text" id="preloaderText">Initializing IndicSignAI...</div>
+        <div class="preloader-bar">
+            <div class="preloader-bar-fill" id="preloaderBarFill"></div>
+        </div>
+        <div class="preloader-status">
+            <div class="preloader-status-item" id="plStatus1">
+                <i class="fa-solid fa-circle"></i> Core
+            </div>
+            <div class="preloader-status-item" id="plStatus2">
+                <i class="fa-solid fa-circle"></i> NLP
+            </div>
+            <div class="preloader-status-item" id="plStatus3">
+                <i class="fa-solid fa-circle"></i> Vision
+            </div>
+            <div class="preloader-status-item" id="plStatus4">
+                <i class="fa-solid fa-circle"></i> Device
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ===== PRELOADER ANIMATION (UI-only, does not touch any app logic) =====
+    (function() {
+        var steps = [
+            { text: 'Initializing IndicSignAI...', progress: 15, status: 1 },
+            { text: 'Loading NLP Models...', progress: 35, status: 2 },
+            { text: 'Calibrating Hand Detection Pipeline...', progress: 60, status: 3 },
+            { text: 'Optimizing your device for better performance...', progress: 85, status: 4 },
+            { text: 'Ready.', progress: 100, status: 4 }
+        ];
+        var textEl = document.getElementById('preloaderText');
+        var barFill = document.getElementById('preloaderBarFill');
+        var preloader = document.getElementById('preloader');
+        var currentStep = 0;
+
+        function nextStep() {
+            if (currentStep >= steps.length) {
+                setTimeout(function() { preloader.classList.add('hidden'); }, 600);
+                return;
+            }
+            var step = steps[currentStep];
+            textEl.classList.add('fade');
+            setTimeout(function() {
+                textEl.textContent = step.text;
+                textEl.classList.remove('fade');
+                barFill.style.width = step.progress + '%';
+                for (var i = 1; i <= step.status; i++) {
+                    var el = document.getElementById('plStatus' + i);
+                    if (el) el.classList.add('active');
+                }
+                currentStep++;
+                if (currentStep < steps.length) {
+                    setTimeout(nextStep, 1500);
+                } else {
+                    setTimeout(function() { preloader.classList.add('hidden'); }, 800);
+                }
+            }, 300);
+        }
+        setTimeout(nextStep, 500);
+    })();
+    </script>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">
+                <div class="logo-icon">
+                    <i class="fa-solid fa-hands-asl-interpreting"></i>
+                </div>
+                IndicSignAI
+            </a>
+
+            <div class="mode-toggle" id="modeToggle">
+                <button class="mode-toggle-btn active" id="modeBtn1" onclick="switchMode(1)">
+                    <i class="fa-solid fa-hand"></i> Translate Sign
+                </button>
+                <button class="mode-toggle-btn" id="modeBtn2" onclick="switchMode(2)">
+                    <i class="fa-solid fa-film"></i> Generate Sign
+                </button>
+            </div>
+
+            <div class="nav-right">
+                <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--gray);">
+                    <div class="status-dot"></div>
+                    <span>Live</span>
+                </div>
+                <a href="/" class="back-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Back
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+
+        <!-- ==================== MODE 1: TRANSLATE SIGN LANGUAGE ==================== -->
+        <div class="mode-panel active" id="mode1Panel">
+            <div class="mode-grid">
+                <!-- Left: Camera + Detection -->
+                <div class="mode-col">
+                    <div class="section-label">
+                        <i class="fa-solid fa-hand"></i> Sign to Language
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-camera"></i>
+                            Camera Detection
+                        </div>
+                        <div class="camera-container" id="cameraContainer">
+                            <video id="cameraPreview" class="camera-feed" autoplay muted playsinline></video>
+                            <canvas id="handCanvas" style="
+                                position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                                z-index: 2; pointer-events: none; border-radius: 12px;
+                            "></canvas>
+                            <div class="camera-overlay" style="z-index: 3;">
+                                <div class="detection-badge" id="detectionBadge">
+                                    <i class="fa-solid fa-video"></i>
+                                    <span>Camera ready</span>
+                                </div>
+                                <div class="record-controls">
+                                    <span class="record-timer" id="recordTimer">0:00</span>
+                                    <button class="record-btn" id="recordBtn" onclick="toggleRecording()" title="Record"></button>
+                                </div>
+                            </div>
+                            <div class="processing-overlay" id="processingOverlay">
+                                <div class="processing-spinner"></div>
+                                <div class="processing-text">Processing Sign...</div>
+                                <div style="font-size:0.8rem; color:var(--gray);">Analyzing video frames</div>
+                            </div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-label">Detected Signs</div>
+                            <div class="result-word" id="currentSign">--</div>
+                            <div class="confidence-text" id="signsDetail" style="margin-top:0.4rem;">
+                                Record a sign to detect
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Sentence Builder + Translation -->
+                <div class="mode-col">
+                    <div class="section-label">
+                        <i class="fa-solid fa-pencil"></i> Results & Translation
+                    </div>
+
+                    <!-- Sentence Builder -->
+                    <div class="sentence-builder" id="sentenceBuilder">
+                        <div class="sentence-header">
+                            <div class="label">
+                                <i class="fa-solid fa-pencil"></i>
+                                Sentence Builder
+                            </div>
+                            <span class="word-count" id="wordCount">0 words</span>
+                        </div>
+                        <textarea class="sentence-textarea" id="sentenceText"
+                            placeholder="Detected signs will appear here as a sentence..."></textarea>
+                        <div class="sentence-controls">
+                            <button class="ctrl-btn primary" onclick="addCurrentWord()" id="addWordBtn" disabled>
+                                <i class="fa-solid fa-plus"></i> Add Word
+                            </button>
+                            <button class="ctrl-btn" onclick="undoLastWord()">
+                                <i class="fa-solid fa-rotate-left"></i> Undo
+                            </button>
+                            <button class="ctrl-btn danger" onclick="clearSentence()">
+                                <i class="fa-solid fa-trash"></i> Clear
+                            </button>
+                            <button class="ctrl-btn" onclick="copySentence()">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                            <button class="ctrl-btn" onclick="speakSentence()">
+                                <i class="fa-solid fa-volume-high"></i> Speak
+                            </button>
+                            <button class="ctrl-btn success" onclick="translateSentence()">
+                                <i class="fa-solid fa-language"></i> Translate
+                            </button>
+                            <button class="ctrl-btn" onclick="fixGrammar()" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Fix Grammar
+                            </button>
+                            <button class="ctrl-btn primary" onclick="animateSentence()">
+                                <i class="fa-solid fa-film"></i> Animate ISL
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Translation Panel (Mode 1) -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-language"></i>
+                            Translation
+                        </div>
+                        <div class="translation-box">
+                            <div class="translation-label">English</div>
+                            <div class="translation-text" id="originalText">--</div>
+                        </div>
+                        <div class="translation-box" style="margin-top: 0.5rem;">
+                            <div class="translation-label">Translated</div>
+                            <div class="translation-text accent" id="translatedText">--</div>
+                        </div>
+                        <select class="language-selector" id="targetLanguage" style="margin-top: 0.5rem;">
+                            <option value="assamese" selected>Assamese (অসমীয়া)</option>
+                            <option value="hindi">Hindi (हिन्दी)</option>
+                            <option value="manipuri">Meitei / Manipuri (ꯃꯩꯇꯩꯂꯣꯟ)</option>
+                            <option value="dzongkha">Dzongkha (རྫོང་ཁ)</option>
+                            <option value="nepali">Nepali (नेपाली)</option>
+                        </select>
+                        <div style="display: flex; gap: 0.4rem; margin-top: 0.5rem;">
+                            <button class="btn btn-primary" onclick="translateCurrent()" style="flex: 1;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                Translate
+                            </button>
+                            <button class="btn btn-secondary" onclick="speakDetectedSign()">
+                                <i class="fa-solid fa-volume-high"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MODE 2: GENERATE SIGN LANGUAGE ==================== -->
+        <div class="mode-panel" id="mode2Panel">
+            <div class="mode-grid">
+                <!-- Left: Input Controls -->
+                <div class="mode-col">
+                    <div class="section-label">
+                        <i class="fa-solid fa-keyboard"></i> Text & Voice Input
+                    </div>
+
+                    <div class="panel" style="flex: 0 0 auto;">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            Type or Speak
+                        </div>
+
+                        <div class="input-group">
+                            <input type="text" class="text-input" id="textInput"
+                                placeholder="Type in any language to convert to ISL...">
+                            <button class="btn btn-primary" onclick="convertTextToSign()">
+                                <i class="fa-solid fa-play"></i>
+                            </button>
+                        </div>
+
+                        <!-- Push-to-Talk Voice Input -->
+                        <div class="voice-input-row" style="margin-top: 0.5rem;">
+                            <select class="voice-lang-select" id="voiceLanguage">
+                                <option value="english" selected>🎤 English</option>
+                                <option value="assamese">🎤 Assamese (অসমীয়া)</option>
+                                <option value="hindi">🎤 Hindi (हिन्दी)</option>
+                                <option value="manipuri">🎤 Meitei (ꯃꯩꯇꯩꯂꯣꯟ)</option>
+                                <option value="dzongkha">🎤 Dzongkha (རྫོང་ཁ)</option>
+                                <option value="nepali">🎤 Nepali (नेपाली)</option>
+                            </select>
+                            <button class="mic-btn" id="micBtn" onclick="toggleVoiceRecording()" title="Push to Talk">
+                                <i class="fa-solid fa-microphone" id="micIcon"></i>
+                            </button>
+                        </div>
+
+                        <div class="voice-processing-bar" id="voiceProcessingBar">
+                            <i class="fa-solid fa-spinner"></i>
+                            <span id="voiceProcessingText">Listening & Translating...</span>
+                        </div>
+
+                        <!-- Mode 2 Toolbar -->
+                        <div class="sentence-controls" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                            <!-- Mapped to textInput operations -->
+                            <button class="ctrl-btn primary" onclick="m2AddWord()" title="Focus input">
+                                <i class="fa-solid fa-plus"></i> Add Word
+                            </button>
+                            <button class="ctrl-btn" onclick="m2Undo()">
+                                <i class="fa-solid fa-rotate-left"></i> Undo
+                            </button>
+                            <button class="ctrl-btn danger" onclick="m2Clear()">
+                                <i class="fa-solid fa-trash"></i> Clear
+                            </button>
+                            <button class="ctrl-btn" onclick="m2Copy()">
+                                <i class="fa-solid fa-copy"></i> Copy
+                            </button>
+                            <button class="ctrl-btn" onclick="m2Speak()">
+                                <i class="fa-solid fa-volume-high"></i> Speak
+                            </button>
+                            <button class="ctrl-btn success" onclick="m2Translate()">
+                                <i class="fa-solid fa-language"></i> Translate
+                            </button>
+                            <button class="ctrl-btn" onclick="m2FixGrammar()" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> Fix Grammar
+                            </button>
+                            <button class="ctrl-btn primary" onclick="convertTextToSign()">
+                                <i class="fa-solid fa-film"></i> Animate ISL
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Translation (Mode 2) -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-language"></i>
+                            Translation Output
+                        </div>
+                        <div class="translation-box">
+                            <div class="translation-label">English (Corrected)</div>
+                            <div class="translation-text" id="m2OriginalText">--</div>
+                        </div>
+                        <div class="translation-box" style="margin-top: 0.5rem;">
+                            <div class="translation-label">Native Input</div>
+                            <div class="translation-text accent" id="m2TranslatedText">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Signs -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-bolt"></i>
+                            Quick Signs
+                        </div>
+                        <div class="quick-signs">
+                            <div class="quick-sign" onclick="showSign('HELLO')">Hello</div>
+                            <div class="quick-sign" onclick="showSign('THANK')">Thank</div>
+                            <div class="quick-sign" onclick="showSign('YES')">Yes</div>
+                            <div class="quick-sign" onclick="showSign('NO')">No</div>
+                            <div class="quick-sign" onclick="showSign('PLEASE')">Please</div>
+                            <div class="quick-sign" onclick="showSign('SORRY')">Sorry</div>
+                            <div class="quick-sign" onclick="showSign('GOOD')">Good</div>
+                            <div class="quick-sign" onclick="showSign('LOVE')">Love</div>
+                            <div class="quick-sign" onclick="showSign('FRIEND')">Friend</div>
+                            <div class="quick-sign" onclick="showSign('WATER')">Water</div>
+                            <div class="quick-sign" onclick="showSign('EAT')">Eat</div>
+                            <div class="quick-sign" onclick="showSign('HAPPY')">Happy</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: ISL Video Player (Hero) -->
+                <div class="mode-col">
+                    <div class="section-label">
+                        <i class="fa-solid fa-film"></i> ISL Video Player
+                    </div>
+
+                    <div class="panel" style="flex: 1; display: flex; flex-direction: column;">
+                        <div class="panel-header">
+                            <i class="fa-solid fa-film"></i>
+                            ISL Video Player
+                        </div>
+                        <div class="video-player-container" id="videoPlayerContainer">
+                            <div class="video-idle" id="videoIdle">
+                                <i class="fa-solid fa-hands-asl-interpreting"></i>
+                                <span style="font-size: 0.95rem; font-weight: 600;">ISL Video Player</span>
+                                <span style="font-size: 0.75rem;">Type text or speak to play ISL animations</span>
+                            </div>
+                            <video id="islVideoPlayer1" class="isl-video active" style="background: #020617; border-radius: 14px;" playsinline></video>
+                            <video id="islVideoPlayer2" class="isl-video inactive" style="background: #020617; border-radius: 14px;" playsinline></video>
+                            <div id="videoWordOverlay" class="video-word-overlay"></div>
+                            <div id="videoSentenceOverlay" class="video-sentence-overlay"></div>
+                            <div id="videoQueueProgress" class="video-queue-progress"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div class="toast" id="toast">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMessage">Success!</span>
+    </div>
+
+    <!-- MediaPipe Hands (client-side live landmark drawing) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+
+
+    <!-- Modular JS — loaded in dependency order -->
+    <script src="{{ url_for('static', filename='js/state.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/videoPlayer.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+</body>
+</html>

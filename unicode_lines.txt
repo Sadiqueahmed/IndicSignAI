@@ -1,0 +1,43 @@
+121: # 15-frame temporal smoothing buffer — a sign must appear in ≥10 of the
+132: PROCESS_EVERY_N_FRAMES = 3  # Process every 3rd frame — balance speed vs accuracy
+137: # Optimized parameters — tuned for 15-frame temporal smoothing
+164:     print("✓ MediaPipe 0.9.x style loaded")
+176:         print("✓ MediaPipe 0.10.x style loaded via solutions")
+187:             print("✓ MediaPipe loaded via direct solutions import")
+222: # Language names — restricted to 5 supported languages
+246:     print("✓ MediaPipe Hand Detector loaded")
+252:             print("✓ ISL_IMAGE.keras model loaded successfully")
+313:                 print(f"✓ TensorFlow Model loaded successfully from {model_path}")
+350:     print(f"✓ Class list initialized with {len(class_mapping)} classes.")
+369:                 print(f"✓ Camera found at index {i} ({CAMERA_WIDTH}x{CAMERA_HEIGHT})")
+371:         print("✗ No camera found, using test pattern")
+435:     # ── 10-of-15 majority voting via Counter ──
+450:         # First sign — require full majority + confidence
+459:         # Same sign continuing — smooth confidence and keep displaying
+465:         # DIFFERENT sign detected — require strict majority + higher confidence + cooldown
+647:             # ── HIGH-VISIBILITY TEXT OVERLAY ──
+916:       4. NLP correction → translated sentence
+1004:                                     # STRICT confidence filtering — only accept if >= threshold
+1034:             # Temporal smoothing within this video — only buffer confident predictions
+1055:         # ── STRICT ERROR RESPONSES ──
+1073:         # 3. Success — signs were detected
+1140: # ── Universal Translation Layer (deep-translator) ──
+1144:     print("✓ deep-translator (GoogleTranslator) loaded")
+1147:     print("✗ deep-translator not available, using fallback")
+1171:     """Universal translation: regional text → English using deep-translator.
+1182:                 logger.info(f"deep-translator [{source_lang}→en]: '{text}' → '{translated}'")
+1192:                 logger.info(f"deep-translator [auto→en]: '{text}' → '{translated}'")
+1271:         # ── STEP 1: Convert webm/ogg → WAV using pydub ──
+1287:         # ── STEP 2: Speech-to-Text ──
+1327:         # ── STEP 3: Translate to English ──
+1331:         # ── STEP 4: NLP Grammar Correction ──
+1336:         # ── STEP 5: Map to ISL Video Files ──
+1387:         # ── STEP 1: Translate to English ──
+1391:         # ── STEP 2: NLP Grammar Correction ──
+1396:         # ── STEP 3: Map to ISL Video Files ──
+1656:     print(f"✓ Primary Model: {'ISL_IMAGE.keras' if isl_image_model else 'ISL_FINAL.keras' if tf_model else 'NOT FOUND'}")
+1657:     print(f"✓ TensorFlow Model: {'LOADED' if tf_model else 'NOT FOUND'}")
+1658:     print(f"✓ ISL Image Model: {'LOADED' if isl_image_model else 'NOT FOUND'}")
+1659:     print(f"✓ Classes: {len(class_mapping) if class_mapping else 0}")
+1660:     print(f"✓ Languages: {len(LANGUAGE_NAMES)}")
+1661:     print("\n🌐 Open: http://localhost:5000")
