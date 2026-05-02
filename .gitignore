@@ -32,8 +32,11 @@ temp_audio.wav
 
 # Model files (large)
 *.h5
+!ISL_IMAGE.keras/model.weights.h5
+!archive/legacy_models/signlanguauge_model.h5
 *.keras
 !ISL_IMAGE.keras/
+!archive/legacy_models/ISL_FINAL.keras
 
 # Archive (keep but don't track new files)
 archive/temp/
