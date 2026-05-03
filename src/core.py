@@ -73,7 +73,7 @@ LANGUAGE_NAMES = {
 DEEP_TRANSLATOR_CODES = {
     'assamese': 'as',
     'hindi': 'hi',
-    'manipuri': None,
+    'manipuri': 'mni-Mtei',
     'dzongkha': 'dz',
     'nepali': 'ne',
     'english': 'en',

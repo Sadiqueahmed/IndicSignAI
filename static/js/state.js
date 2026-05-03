@@ -41,7 +41,7 @@ let wsConsecutiveCount = 0;
 const WS_CONSECUTIVE_LOCK = 2;
 
 // Video playback queue instance
-let videoQueue = null;
+var videoQueue = null;
 
 // Current UI mode (1 = Translate Sign, 2 = Generate Sign)
 let currentMode = 1;

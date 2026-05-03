@@ -84,7 +84,7 @@ class TranslationModel:
         self.deep_translator_codes = {
             'assamese': 'as',
             'hindi': 'hi',
-            'manipuri': None,   # Google Translate has no Meitei Mayek support
+            'manipuri': 'mni-Mtei',   # Google Translate supports Meitei Mayek script
             'nepali': 'ne',
             'marathi': 'mr',
             'odia': 'or',

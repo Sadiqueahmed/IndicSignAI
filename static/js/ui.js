@@ -24,7 +24,7 @@ function switchMode(mode) {
 
 // ========== INIT ==========
 document.addEventListener('DOMContentLoaded', function () {
-    videoQueue = new VideoPlaybackQueue();
+    videoQueue = new VideoQueueManager();
     initializeSystem();
     initWebSocket();
     startCamera();
@@ -112,7 +112,7 @@ async function handleRecordingStopped() {
             if (data.corrected) document.getElementById('originalText').textContent = data.corrected;
             if (data.translated) document.getElementById('translatedText').textContent = data.translated;
             if (data.corrected && videoQueue) {
-                const ok = await videoQueue.enqueue(data.corrected);
+                const ok = videoQueue.enqueueSentence(data.corrected);
                 if (ok) videoQueue.play();
             }
             showToast('Detected: ' + data.signs.join(', '), 'success');

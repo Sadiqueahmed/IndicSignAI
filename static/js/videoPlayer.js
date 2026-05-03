@@ -48,6 +48,8 @@ class VideoQueueManager {
         this.currentIndex = 0;
         this.isPlaying    = false;
         this.activeSlot   = 1;   // which video element is "on screen"
+        this._skipGuard   = false; // prevents infinite _onError → _onEnded loops
+        this._advancing   = false; // prevents double-advance from stale events
 
         this._ready = !!(this.video1 && this.video2);
 
@@ -57,11 +59,8 @@ class VideoQueueManager {
             return;
         }
 
-        // ── Bind playback events ──────────────────────────────────────────────
-        this.video1.addEventListener('ended',  () => this._onEnded());
-        this.video2.addEventListener('ended',  () => this._onEnded());
-        this.video1.addEventListener('error',  () => this._onError());
-        this.video2.addEventListener('error',  () => this._onError());
+        // NOTE: We do NOT bind global 'ended'/'error' events here.
+        // They are attached per-load in _loadAndPlay() to avoid stale event races.
 
         console.log('[ISL Player] VideoQueueManager initialised ✔');
     }
@@ -106,6 +105,8 @@ class VideoQueueManager {
 
         this.isPlaying  = true;
         this.activeSlot = 1;
+        this._skipGuard = false;
+        this._advancing = false;
 
         if (this.idleEl)     this.idleEl.style.display     = 'none';
         if (this.sentenceEl) this.sentenceEl.style.display = 'block';
@@ -116,40 +117,129 @@ class VideoQueueManager {
         this.video1.style.display = 'block';
         this.video2.style.display = 'block';
 
-        // Load + play first item on video1
-        this._load(this.video1, this.queue[0]);
+        // Load + play first item on video1, waiting for it to be ready
         this._highlightWord(0);
-
-        this.video1.play()
-            .then(() => { /* playing */ })
-            .catch(e => {
-                console.warn(`[ISL Player] play() failed for "${this.queue[0]?.word}":`, e.message);
-                this._onError();
-            });
-
-        // Preload second item on video2
-        this._preload(1);
+        this._loadAndPlay(this.video1, this.queue[0]);
     }
 
     stop() {
         if (!this._ready) return;
-        try { this.video1.pause(); this.video1.removeAttribute('src'); } catch (_) {}
-        try { this.video2.pause(); this.video2.removeAttribute('src'); } catch (_) {}
+        this._cleanupVideo(this.video1);
+        this._cleanupVideo(this.video2);
         this._finish(false);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    _load(videoEl, item) {
-        if (!videoEl || !item) return;
-        videoEl.src = item.url;
-        videoEl.load();
+    /** Remove all per-load handlers and clear the video source. */
+    _cleanupVideo(videoEl) {
+        if (!videoEl) return;
+        try { videoEl.pause(); } catch (_) {}
+        videoEl._endedHandler && videoEl.removeEventListener('ended', videoEl._endedHandler);
+        videoEl._errorHandler && videoEl.removeEventListener('error', videoEl._errorHandler);
+        videoEl._readyHandler && videoEl.removeEventListener('canplaythrough', videoEl._readyHandler);
+        if (videoEl._loadTimeout) { clearTimeout(videoEl._loadTimeout); videoEl._loadTimeout = null; }
+        videoEl._endedHandler = null;
+        videoEl._errorHandler = null;
+        videoEl._readyHandler = null;
+        try { videoEl.removeAttribute('src'); videoEl.load(); } catch (_) {}
     }
 
-    _preload(index) {
-        if (index >= this.queue.length) return;
-        const target = this.activeSlot === 1 ? this.video2 : this.video1;
-        this._load(target, this.queue[index]);
+    _loadAndPlay(videoEl, item) {
+        if (!videoEl || !item) return;
+
+        // Clean up any previous load on this element
+        this._cleanupVideo(videoEl);
+        this._advancing = false;
+
+        // ── Error handler (video file missing → fingerspelling fallback) ──
+        videoEl._errorHandler = () => {
+            console.warn(`[ISL Player] ⚠ No video for word: "${item.word}" (${item.url}).`);
+
+            // ── FINGERSPELLING FALLBACK ──────────────────────────────────
+            if (!item._isLetter && item.word && item.word.length > 0) {
+                const letters = item.word.toUpperCase().split('').filter(c => /[A-Z]/.test(c));
+                if (letters.length > 0) {
+                    console.log(`[ISL Player] 🔤 Fingerspelling "${item.word}" → [${letters.join(', ')}]`);
+
+                    const letterItems = letters.map(letter => ({
+                        word: letter.toLowerCase(),
+                        url: `/api/video/${letter}.mp4`,
+                        spanEl: item.spanEl,
+                        _isLetter: true
+                    }));
+
+                    this.queue.splice(this.currentIndex, 1, ...letterItems);
+                    this._highlightWord(this.currentIndex);
+
+                    // Play the first letter on the SAME video element
+                    setTimeout(() => {
+                        this._loadAndPlay(videoEl, this.queue[this.currentIndex]);
+                    }, 50);
+                    return;
+                }
+            }
+
+            // No fingerspelling possible — skip
+            this._safeAdvance();
+        };
+        videoEl.addEventListener('error', videoEl._errorHandler, { once: true });
+
+        // ── Ended handler (video finished playing → advance to next) ──
+        videoEl._endedHandler = () => {
+            this._safeAdvance();
+        };
+        videoEl.addEventListener('ended', videoEl._endedHandler, { once: true });
+
+        // Set source and start loading
+        videoEl.src = item.url;
+        videoEl.load();
+
+        // ── Ready handler (video buffered enough to play) ──
+        videoEl._readyHandler = () => {
+            videoEl.removeEventListener('canplaythrough', videoEl._readyHandler);
+            videoEl._readyHandler = null;
+            if (videoEl._loadTimeout) { clearTimeout(videoEl._loadTimeout); videoEl._loadTimeout = null; }
+            videoEl.play()
+                .then(() => { /* playing */ })
+                .catch(e => {
+                    console.warn(`[ISL Player] play() failed for "${item.word}":`, e.message);
+                    this._safeAdvance();
+                });
+        };
+        videoEl.addEventListener('canplaythrough', videoEl._readyHandler);
+
+        // Safety timeout — skip if video doesn't load in 3 seconds
+        videoEl._loadTimeout = setTimeout(() => {
+            videoEl.removeEventListener('canplaythrough', videoEl._readyHandler);
+            videoEl._readyHandler = null;
+            videoEl._loadTimeout = null;
+            console.warn(`[ISL Player] Timeout loading "${item.word}". Skipping.`);
+            this._safeAdvance();
+        }, 3000);
+    }
+
+    /** Advance to next item, with guard against double-calls from stale events. */
+    _safeAdvance() {
+        if (this._advancing) return; // prevent double-advance
+        this._advancing = true;
+
+        this.currentIndex++;
+        if (this.currentIndex >= this.queue.length) {
+            this._finish(true);
+            return;
+        }
+
+        // Swap active/inactive video elements (ping-pong)
+        const incoming = this.activeSlot === 1 ? this.video2 : this.video1;
+        const outgoing = this.activeSlot === 1 ? this.video1 : this.video2;
+
+        outgoing.classList.replace('active', 'inactive');
+        incoming.classList.replace('inactive', 'active');
+        this.activeSlot = this.activeSlot === 1 ? 2 : 1;
+
+        this._highlightWord(this.currentIndex);
+        this._loadAndPlay(incoming, this.queue[this.currentIndex]);
     }
 
     _highlightWord(index) {
@@ -163,42 +253,6 @@ class VideoQueueManager {
         }
     }
 
-    _onEnded() {
-        this.currentIndex++;
-        if (this.currentIndex >= this.queue.length) {
-            this._finish(true);
-            return;
-        }
-
-        // Swap active/inactive
-        const outgoing = this.activeSlot === 1 ? this.video1 : this.video2;
-        const incoming = this.activeSlot === 1 ? this.video2 : this.video1;
-
-        outgoing.classList.replace('active', 'inactive');
-        incoming.classList.replace('inactive', 'active');
-        this.activeSlot = this.activeSlot === 1 ? 2 : 1;
-
-        this._highlightWord(this.currentIndex);
-
-        incoming.play()
-            .then(() => { /* playing */ })
-            .catch(e => {
-                console.warn(`[ISL Player] play() swap failed for "${this.queue[this.currentIndex]?.word}":`, e.message);
-                this._onError();
-            });
-
-        this._preload(this.currentIndex + 1);
-    }
-
-    _onError() {
-        const item = this.queue[this.currentIndex];
-        console.warn(
-            `[ISL Player] ⚠ No video for word: "${item?.word}" (${item?.url}). Skipping.`
-        );
-        // Treat as "ended" to advance the queue
-        this._onEnded();
-    }
-
     _resetVideoClasses() {
         this.video1.className = 'isl-video active';
         this.video2.className = 'isl-video inactive';
@@ -206,6 +260,10 @@ class VideoQueueManager {
 
     _finish(showComplete = true) {
         this.isPlaying = false;
+        this._advancing = false;
+
+        this._cleanupVideo(this.video1);
+        this._cleanupVideo(this.video2);
 
         if (this.video1) this.video1.style.display = 'none';
         if (this.video2) this.video2.style.display = 'none';
@@ -227,7 +285,7 @@ class VideoQueueManager {
 // (scripts are at bottom of <body>, so document.readyState is 'complete')
 // ─────────────────────────────────────────────────────────────────────────────
 
-let videoQueue = null;
+var videoQueue = null;
 
 function _initVideoQueue() {
     try {
