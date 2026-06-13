@@ -6,7 +6,7 @@ Architecture:
   - Backend decodes → preprocesses (BGR→RGB, 224×224) → appends to per-client deque(maxlen=20)
   - When deque reaches 20 frames → run model inference
   - After confident prediction, pop 5 oldest frames (sliding window)
-  - Confidence threshold > 0.75 enforced before emitting result
+  - Confidence threshold > 0.80 enforced before emitting result
   - Emits 'prediction_result' event with { word, confidence }
 """
 
@@ -28,9 +28,9 @@ from src.core import (
 )
 
 # ══════════════════════════════════════════════════════════════════════
-# CONFIDENCE THRESHOLD — Module 2 spec: only accept predictions > 0.75
+# CONFIDENCE THRESHOLD — Module 3 spec: only accept predictions > 0.80
 # ══════════════════════════════════════════════════════════════════════
-PREDICTION_CONFIDENCE_THRESHOLD = 0.75
+PREDICTION_CONFIDENCE_THRESHOLD = 0.80
 
 # Per-client session state
 client_sessions = {}

@@ -4,15 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IndicSignAI  -  Real-Time Sign Language Translation</title>
+    <title>IndicSignAI - Real-Time Sign Language Translation</title>
     <meta name="description" content="Two-way real-time Indian Sign Language translator with regional language support">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Bengali&family=Noto+Sans+Devanagari&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Gujarati&family=Noto+Sans+Oriya&display=swap"
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Bengali&family=Noto+Sans+Devanagari&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&family=Noto+Sans+Gujarati&family=Noto+Sans+Oriya&display=swap"
         rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+    <link rel="stylesheet" href="/static/app.css">
 </head>
+
 <body>
     <!-- ===== PRELOADER SPLASH SCREEN ===== -->
     <div class="preloader" id="preloader">
@@ -42,45 +44,45 @@
     </div>
 
     <script>
-    // ===== PRELOADER ANIMATION (UI-only, does not touch any app logic) =====
-    (function() {
-        var steps = [
-            { text: 'Initializing IndicSignAI...', progress: 15, status: 1 },
-            { text: 'Loading NLP Models...', progress: 35, status: 2 },
-            { text: 'Calibrating Hand Detection Pipeline...', progress: 60, status: 3 },
-            { text: 'Optimizing your device for better performance...', progress: 85, status: 4 },
-            { text: 'Ready.', progress: 100, status: 4 }
-        ];
-        var textEl = document.getElementById('preloaderText');
-        var barFill = document.getElementById('preloaderBarFill');
-        var preloader = document.getElementById('preloader');
-        var currentStep = 0;
+        // ===== PRELOADER ANIMATION (UI-only, does not touch any app logic) =====
+        (function () {
+            var steps = [
+                { text: 'Initializing IndicSignAI...', progress: 15, status: 1 },
+                { text: 'Loading NLP Models...', progress: 35, status: 2 },
+                { text: 'Calibrating Hand Detection Pipeline...', progress: 60, status: 3 },
+                { text: 'Optimizing your device for better performance...', progress: 85, status: 4 },
+                { text: 'Ready.', progress: 100, status: 4 }
+            ];
+            var textEl = document.getElementById('preloaderText');
+            var barFill = document.getElementById('preloaderBarFill');
+            var preloader = document.getElementById('preloader');
+            var currentStep = 0;
 
-        function nextStep() {
-            if (currentStep >= steps.length) {
-                setTimeout(function() { preloader.classList.add('hidden'); }, 600);
-                return;
+            function nextStep() {
+                if (currentStep >= steps.length) {
+                    setTimeout(function () { preloader.classList.add('hidden'); }, 600);
+                    return;
+                }
+                var step = steps[currentStep];
+                textEl.classList.add('fade');
+                setTimeout(function () {
+                    textEl.textContent = step.text;
+                    textEl.classList.remove('fade');
+                    barFill.style.width = step.progress + '%';
+                    for (var i = 1; i <= step.status; i++) {
+                        var el = document.getElementById('plStatus' + i);
+                        if (el) el.classList.add('active');
+                    }
+                    currentStep++;
+                    if (currentStep < steps.length) {
+                        setTimeout(nextStep, 1500);
+                    } else {
+                        setTimeout(function () { preloader.classList.add('hidden'); }, 800);
+                    }
+                }, 300);
             }
-            var step = steps[currentStep];
-            textEl.classList.add('fade');
-            setTimeout(function() {
-                textEl.textContent = step.text;
-                textEl.classList.remove('fade');
-                barFill.style.width = step.progress + '%';
-                for (var i = 1; i <= step.status; i++) {
-                    var el = document.getElementById('plStatus' + i);
-                    if (el) el.classList.add('active');
-                }
-                currentStep++;
-                if (currentStep < steps.length) {
-                    setTimeout(nextStep, 1500);
-                } else {
-                    setTimeout(function() { preloader.classList.add('hidden'); }, 800);
-                }
-            }, 300);
-        }
-        setTimeout(nextStep, 500);
-    })();
+            setTimeout(nextStep, 500);
+        })();
     </script>
 
     <nav class="navbar">
@@ -143,7 +145,8 @@
                                 </div>
                                 <div class="record-controls">
                                     <span class="record-timer" id="recordTimer">0:00</span>
-                                    <button class="record-btn" id="recordBtn" onclick="toggleRecording()" title="Record"></button>
+                                    <button class="record-btn" id="recordBtn" onclick="toggleRecording()"
+                                        title="Record"></button>
                                 </div>
                             </div>
                             <div class="processing-overlay" id="processingOverlay">
@@ -198,7 +201,8 @@
                             <button class="ctrl-btn success" onclick="translateSentence()">
                                 <i class="fa-solid fa-language"></i> Translate
                             </button>
-                            <button class="ctrl-btn" onclick="fixGrammar()" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                            <button class="ctrl-btn" onclick="fixGrammar()"
+                                style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Fix Grammar
                             </button>
                             <button class="ctrl-btn primary" onclick="animateSentence()">
@@ -286,7 +290,8 @@
                         </div>
 
                         <!-- Mode 2 Toolbar -->
-                        <div class="sentence-controls" style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                        <div class="sentence-controls"
+                            style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
                             <!-- Mapped to textInput operations -->
                             <button class="ctrl-btn primary" onclick="m2AddWord()" title="Focus input">
                                 <i class="fa-solid fa-plus"></i> Add Word
@@ -306,7 +311,8 @@
                             <button class="ctrl-btn success" onclick="m2Translate()">
                                 <i class="fa-solid fa-language"></i> Translate
                             </button>
-                            <button class="ctrl-btn" onclick="m2FixGrammar()" style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
+                            <button class="ctrl-btn" onclick="m2FixGrammar()"
+                                style="border-color: rgba(245, 158, 11, 0.4); color: #fbbf24;">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> Fix Grammar
                             </button>
                             <button class="ctrl-btn primary" onclick="convertTextToSign()">
@@ -371,8 +377,10 @@
                                 <span style="font-size: 0.95rem; font-weight: 600;">ISL Video Player</span>
                                 <span style="font-size: 0.75rem;">Type text or speak to play ISL animations</span>
                             </div>
-                            <video id="islVideoPlayer1" class="isl-video active" style="background: #020617; border-radius: 14px;" playsinline></video>
-                            <video id="islVideoPlayer2" class="isl-video inactive" style="background: #020617; border-radius: 14px;" playsinline></video>
+                            <video id="islVideoPlayer1" class="isl-video active"
+                                style="background: #020617; border-radius: 14px;" playsinline></video>
+                            <video id="islVideoPlayer2" class="isl-video inactive"
+                                style="background: #020617; border-radius: 14px;" playsinline></video>
                             <div id="videoWordOverlay" class="video-word-overlay"></div>
                             <div id="videoSentenceOverlay" class="video-sentence-overlay"></div>
                             <div id="videoQueueProgress" class="video-queue-progress"></div>
@@ -390,17 +398,21 @@
     </div>
 
     <!-- MediaPipe Hands (client-side live landmark drawing) -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.min.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.min.js"
+        crossorigin="anonymous"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
 
 
     <!-- Modular JS — loaded in dependency order -->
-    <script src="{{ url_for('static', filename='js/state.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/camera.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/websocket.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/videoPlayer.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="/static/js/state.js"></script>
+    <script src="/static/js/camera.js"></script>
+    <script src="/static/js/websocket.js"></script>
+    <script src="/static/js/videoPlayer.js"></script>
+    <script src="/static/js/ui.js"></script>
 </body>
+
 </html>
