@@ -15,7 +15,7 @@ src_dir = os.path.join(os.path.dirname(__file__), 'src')
 os.chdir(src_dir)
 
 # Now import and run the app
-from app import app, load_models
+from app import app, socketio
 
 if __name__ == '__main__':
     import os
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     os.makedirs('../models', exist_ok=True)
     os.makedirs('../training/data/training_data', exist_ok=True)
     
-    load_models()
+    # NOTE: load_models() is already called at import time by src/app.py (line 34)
     
     print("\n" + "="*80)
     print("INDICSIGNAI - READY")
@@ -35,4 +35,4 @@ if __name__ == '__main__':
     print("\n🌐 Open: http://localhost:5000")
     print("="*80)
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    socketio.run(app, debug=True, use_reloader=False, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

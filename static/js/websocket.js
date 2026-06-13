@@ -1,5 +1,16 @@
 /**
- * websocket.js — Real-Time WebSocket Inference
+ * websocket.js — Real-Time WebSocket Inference (CNN+BiLSTM Pipeline)
+ * 
+ * PREDICTION FLOW (Modules 1-3):
+ *   1. Frontend sends base64 JPEG frames via WebSocket 'frame' event
+ *   2. Backend buffers 20 frames → CNN+BiLSTM inference
+ *   3. Backend emits 'prediction_result' with { word, confidence }
+ *      - 'word' is present ONLY when confidence > 0.75
+ *   4. Frontend receives 'prediction_result':
+ *      - Updates UI with the detected English word
+ *      - IMMEDIATELY triggers fetch to /api/translate with selected language
+ *   5. If 'word' is null → show diagnostic info (low-confidence / buffering)
+ * 
  * Depends on: state.js
  */
 
@@ -8,104 +19,167 @@ function initWebSocket() {
         wsSocket = io({ transports: ['websocket', 'polling'] });
 
         wsSocket.on('connect', () => {
-            console.log('[WS] Connected to server for real-time inference');
+            console.log('[WS] Connected to server for CNN+BiLSTM inference');
         });
         wsSocket.on('disconnect', () => {
             console.log('[WS] Disconnected');
         });
         wsSocket.on('status', (data) => {
             console.log('[WS] Server status:', data);
-            if (data.sklearn) console.log('[WS] Sklearn model active');
-            if (data.tflite) console.log('[WS] TFLite acceleration active');
-        });
-        wsSocket.on('prediction', (data) => {
-            handleWebSocketPrediction(data);
+            if (data.model === 'cnn_bilstm') {
+                console.log('[WS] ✓ CNN+BiLSTM model active (seq_len=' + data.seq_len + ')');
+                console.log('[WS] ✓ Confidence threshold: ' + data.confidence_threshold);
+            } else {
+                console.warn('[WS] ✗ No model loaded on server');
+            }
         });
 
-        // Offscreen canvas for full-frame capture (backend runs MediaPipe)
-        wsOffCanvas = document.createElement('canvas');
-        wsOffCanvas.width = 320;
-        wsOffCanvas.height = 240;
-        wsOffCtx = wsOffCanvas.getContext('2d');
+        // ══════════════════════════════════════════════════════════
+        // MODULE 3: Listen for 'prediction_result' from backend
+        // This is the SOLE prediction event. The backend only sends
+        // 'word' when confidence > 0.75.
+        // ══════════════════════════════════════════════════════════
+        wsSocket.on('prediction_result', (data) => {
+            console.log('[WS] prediction_result received:', JSON.stringify(data));
+            handlePredictionResult(data);
+        });
+
+        // ── CNN+BiLSTM: Buffer status events from server ──
+        wsSocket.on('buffer_status', (data) => {
+            wsBufferCount = data.count;
+            wsBufferRequired = data.required;
+            wsBufferReady = data.ready;
+            _updateBufferIndicator(data);
+        });
+
+        // Create offscreen canvas for frame capture (compressed JPEG for WebSocket)
+        frameCaptureCanvas = document.createElement('canvas');
+        frameCaptureCanvas.width = FRAME_CAPTURE_WIDTH;
+        frameCaptureCanvas.height = FRAME_CAPTURE_HEIGHT;
+        frameCaptureCtx = frameCaptureCanvas.getContext('2d');
+
     } catch (err) {
         console.error('WebSocket init failed:', err);
     }
 }
 
-function handleWebSocketPrediction(data) {
+
+/**
+ * MODULE 3 — Frontend Sync: Handle prediction_result from backend
+ * 
+ * CASE 1: data.word is present → High-confidence detection
+ *   - Update UI with the detected English word
+ *   - IMMEDIATELY trigger /api/translate with selected target_language
+ * 
+ * CASE 2: data.word is null → Below threshold / buffering
+ *   - Show diagnostic status info
+ */
+function handlePredictionResult(data) {
     if (isRecording || isProcessing) return;
 
     const badge = document.getElementById('detectionBadge');
 
-    // ── DIAGNOSTIC: Always update the debug panel with every prediction ──
+    // ── Always update the diagnostic debug panel ──
     _updateDebugPanel(data);
 
-    if (data.sign && data.confidence >= 0.45) {
-        if (data.sign === wsLastSign) {
-            wsConsecutiveCount++;
-        } else {
-            wsLastSign = data.sign;
-            wsConsecutiveCount = 1;
-        }
+    // ═══════════════════════════════════════════════════════════════
+    // CASE 1: CONFIDENT DETECTION — 'word' is present (conf > 0.75)
+    // ═══════════════════════════════════════════════════════════════
+    if (data.word) {
+        const confPct = Math.round(data.confidence * 100);
+        console.log(`[PREDICTION] ✓ Detected: "${data.word}" at ${confPct}% confidence`);
 
-        if (wsConsecutiveCount >= WS_CONSECUTIVE_LOCK) {
-            const confPct = Math.round(data.confidence * 100);
-
+        // Update detection badge in camera overlay
+        if (badge) {
             badge.classList.add('active');
             badge.innerHTML = '<i class="fa-solid fa-hand" style="color:#10b981"></i>' +
-                '<span>' + data.sign + ' (' + confPct + '%)</span>';
-
-            currentSign = data.sign;
-            currentConfidence = data.confidence;
-            document.getElementById('currentSign').textContent = data.sign;
-
-            const confEl = document.getElementById('signsDetail');
-            let confClass = confPct >= 70 ? 'conf-high' : confPct >= 40 ? 'conf-mid' : 'conf-low';
-            confEl.innerHTML = '<span class="conf-value ' + confClass + '">' + confPct +
-                '%</span> confidence &middot; ' + data.model + ' &middot; Live';
-
-            document.getElementById('addWordBtn').disabled = false;
-
-            // ── AUTO-TRANSLATE: debounced live translation ──────────────
-            // Only fire if this is a genuinely NEW sign and no request is
-            // already in-flight.  Captures the dropdown value at the exact
-            // moment the sign is confirmed.
-            if (data.sign !== lastTranslatedSign && !liveTranslationInFlight) {
-                _autoTranslateLiveSign(data.sign);
-            }
+                '<span>' + data.word + ' (' + confPct + '%)</span>';
         }
-    } else {
-        wsConsecutiveCount = Math.max(0, wsConsecutiveCount - 1);
+
+        // Update global state
+        currentSign = data.word;
+        currentConfidence = data.confidence;
+
+        // Update the detected-sign display card
+        const signEl = document.getElementById('currentSign');
+        if (signEl) signEl.textContent = data.word;
+
+        const confEl = document.getElementById('signsDetail');
+        if (confEl) {
+            let confClass = confPct >= 85 ? 'conf-high' : confPct >= 60 ? 'conf-mid' : 'conf-low';
+            confEl.innerHTML = '<span class="conf-value ' + confClass + '">' + confPct +
+                '%</span> confidence &middot; CNN+BiLSTM &middot; Live';
+        }
+
+        // Enable the "Add Word" button
+        const addBtn = document.getElementById('addWordBtn');
+        if (addBtn) addBtn.disabled = false;
+
+        // Update the "English" output panel
+        const origEl = document.getElementById('originalText');
+        if (origEl) origEl.textContent = data.word;
+
+        // ══════════════════════════════════════════════════════════
+        // MODULE 3: IMMEDIATELY trigger /api/translate
+        // Only fires when the word is DIFFERENT from the last one
+        // (debounce to avoid spamming the API)
+        // ══════════════════════════════════════════════════════════
+        if (data.word !== lastTranslatedSign && !liveTranslationInFlight) {
+            console.log(`[TRANSLATION] Triggering auto-translate: "${data.word}"`);
+            _autoTranslateLiveSign(data.word);
+        }
+
+        // Reset tracking state
+        wsConsecutiveCount = 0;
+        wsLastSign = data.word;
+        return;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CASE 2: LOW CONFIDENCE — 'word' is null
+    // ═══════════════════════════════════════════════════════════════
+    if (data.raw_sign && data.confidence > 0) {
+        const rawPct = Math.round(data.confidence * 100);
+        console.log(`[PREDICTION] ✗ Below threshold: "${data.raw_sign}" at ${rawPct}%`);
+        if (badge) {
+            badge.classList.add('active');
+            badge.innerHTML = '<i class="fa-solid fa-magnifying-glass" style="color:#fbbf24"></i>' +
+                '<span>' + (data.status || data.raw_sign + ' (' + rawPct + '%)') + '</span>';
+        }
     }
 }
 
-/**
- * Debounced auto-translation for the live camera pipeline.
- * - Reads the language dropdown value at call time.
- * - Guards against empty/null signs.
- * - Sets liveTranslationInFlight to prevent concurrent calls.
- * - On failure, shows the red toast + fallback text via _showTranslationError().
- */
-async function _autoTranslateLiveSign(sign) {
-    if (!sign || !sign.trim()) return;
 
+/**
+ * MODULE 3 — Translation Handoff
+ * 
+ * IMMEDIATELY triggers a fetch call to /api/translate when a confident
+ * sign is detected. Uses the currently selected target_language from
+ * the UI dropdown (#targetLanguage).
+ * 
+ * @param {string} word - The detected English word (e.g., "Hello")
+ */
+async function _autoTranslateLiveSign(word) {
+    if (!word || !word.trim()) return;
+
+    // Get the currently selected target language from the dropdown
     const langSelect = document.getElementById('targetLanguage');
-    if (!langSelect) return;
+    if (!langSelect) {
+        console.error('[TRANSLATION] targetLanguage dropdown not found!');
+        return;
+    }
     const targetLang = langSelect.value;
+    console.log(`[TRANSLATION] Calling /api/translate: word="${word}", target_lang="${targetLang}"`);
 
     liveTranslationInFlight = true;
-    lastTranslatedSign = sign;
-
-    // Update the English text display immediately
-    const origEl = document.getElementById('originalText');
-    if (origEl) origEl.textContent = sign;
+    lastTranslatedSign = word;
 
     try {
         const resp = await fetch('/api/translate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                text: sign,
+                text: word,
                 target_lang: targetLang,
                 direction: 'en_to_regional'
             })
@@ -113,7 +187,7 @@ async function _autoTranslateLiveSign(sign) {
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({}));
-            console.error('[_autoTranslateLiveSign] HTTP', resp.status, errData);
+            console.error('[TRANSLATION] HTTP error', resp.status, errData);
             _showTranslationError();
             return;
         }
@@ -122,67 +196,94 @@ async function _autoTranslateLiveSign(sign) {
         if (data.success && data.data) {
             const transEl = document.getElementById('translatedText');
             if (transEl) {
-                transEl.style.color = '';  // reset any error styling
+                transEl.style.color = '';
                 transEl.textContent = data.data.translated;
             }
+            console.log(`[TRANSLATION] ✓ "${word}" → "${data.data.translated}" (${targetLang})`);
         } else {
-            console.error('[_autoTranslateLiveSign] Backend error:', data.error || data.message);
+            console.error('[TRANSLATION] Backend error:', data.error || data.message);
             _showTranslationError();
         }
     } catch (err) {
-        console.error('[_autoTranslateLiveSign] Network error:', err);
+        console.error('[TRANSLATION] Network error:', err);
         _showTranslationError();
     } finally {
         liveTranslationInFlight = false;
     }
 }
 
+
 /**
- * Send the FULL video frame to the backend via WebSocket.
+ * CNN+BiLSTM Frame Sender
  * 
- * The backend runs MediaPipe + landmark extraction + model prediction.
- * We send the full frame (not a cropped region) because:
- *   1. MediaPipe needs the full image context for accurate hand detection
- *   2. The backend handles bounding-box normalisation identically to training
- *   3. Pre-cropping a 160×160 region caused MediaPipe re-detection failures
+ * Captures the current video frame from the <video> element, compresses it
+ * to a base64 JPEG, and sends it to the backend via WebSocket.
+ * 
+ * @param {HTMLVideoElement} videoElement - The camera preview element
  */
-function sendFrameViaWebSocket(landmarks, videoElement) {
+function sendFrameViaWebSocket(videoElement) {
     if (!wsSocket || !wsSocket.connected) return;
     if (isRecording || isProcessing) return;
 
     const now = Date.now();
     if (now - wsLastSendTime < WS_THROTTLE_MS) return;
 
-    // Motion blur detection — skip frames with too much hand movement
-    if (wsPrevLandmarks && wsPrevLandmarks.length === landmarks.length) {
-        let totalDisplacement = 0;
-        for (let i = 0; i < landmarks.length; i++) {
-            const dx = landmarks[i].x - wsPrevLandmarks[i].x;
-            const dy = landmarks[i].y - wsPrevLandmarks[i].y;
-            totalDisplacement += Math.sqrt(dx * dx + dy * dy);
-        }
-        const avgMotion = totalDisplacement / landmarks.length;
-        if (avgMotion > WS_MOTION_THRESHOLD) {
-            const badge = document.getElementById('detectionBadge');
-            badge.classList.add('active');
-            badge.innerHTML = '<i class="fa-solid fa-wind" style="color:#f59e0b"></i><span>Hold steady...</span>';
-            wsPrevLandmarks = landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z }));
-            return;
-        }
-    }
-    wsPrevLandmarks = landmarks.map(lm => ({ x: lm.x, y: lm.y, z: lm.z }));
+    if (!frameCaptureCanvas || !frameCaptureCtx) return;
+    if (!videoElement || videoElement.readyState < 2) return;
 
-    // Send only the extracted landmarks to the backend for inference,
-    // bypassing the need to send Base64 images and run MediaPipe twice.
-    const lmArray = landmarks.map(lm => ({
-        x: lm.x,
-        y: lm.y,
-        z: lm.z || 0.0
-    }));
-    
-    wsSocket.emit('frame', { landmarks: lmArray });
+    // Draw current video frame onto the offscreen canvas (downscaled)
+    frameCaptureCtx.drawImage(videoElement, 0, 0, FRAME_CAPTURE_WIDTH, FRAME_CAPTURE_HEIGHT);
+
+    // Convert to base64 JPEG
+    const base64Data = frameCaptureCanvas.toDataURL('image/jpeg', FRAME_CAPTURE_QUALITY);
+
+    // Send to backend
+    wsSocket.emit('frame', { image: base64Data });
     wsLastSendTime = now;
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BUFFER FILL INDICATOR  —  Shows how many frames have been collected
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _bufferIndicatorEl = null;
+
+/**
+ * Create and update the buffer fill indicator in the camera overlay.
+ */
+function _updateBufferIndicator(data) {
+    if (!_bufferIndicatorEl) {
+        _bufferIndicatorEl = document.createElement('div');
+        _bufferIndicatorEl.id = 'bufferIndicator';
+        _bufferIndicatorEl.style.cssText = `
+            position: absolute; bottom: 8px; left: 8px; right: 8px;
+            z-index: 4; display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.7); border-radius: 8px; padding: 6px 10px;
+            font-family: 'Inter', monospace; font-size: 0.72rem; color: #a1a1aa;
+            backdrop-filter: blur(4px);
+        `;
+        const camContainer = document.getElementById('cameraContainer');
+        if (camContainer) camContainer.appendChild(_bufferIndicatorEl);
+    }
+
+    const pct = Math.round((data.count / data.required) * 100);
+    const barColor = data.ready
+        ? 'linear-gradient(90deg, #10b981, #34d399)'
+        : 'linear-gradient(90deg, #6366f1, #818cf8)';
+    const statusText = data.ready
+        ? '🧠 Predicting...'
+        : `📹 Buffering ${data.count}/${data.required}`;
+
+    _bufferIndicatorEl.innerHTML = `
+        <span style="white-space:nowrap; min-width: 110px;">${statusText}</span>
+        <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:2px; transition: width 0.15s ease;"></div>
+        </div>
+        <span style="min-width:30px; text-align:right;">${pct}%</span>
+    `;
+}
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // REAL-TIME DEBUG PANEL  —  Displays confidence, model, prediction pipeline
@@ -194,8 +295,6 @@ let _debugLastUpdate = 0;
 
 /**
  * Create the floating debug panel and inject it into the camera container.
- * The panel appears as a semi-transparent overlay in the bottom-left corner
- * of the camera feed — always visible while the camera is active.
  */
 function _createDebugPanel() {
     if (_debugPanelEl) return _debugPanelEl;
@@ -214,7 +313,7 @@ function _createDebugPanel() {
                 <span class="debug-value" id="debugPrediction">--</span>
             </div>
             <div class="debug-row">
-                <span class="debug-label">Raw Confidence</span>
+                <span class="debug-label">Confidence</span>
                 <span class="debug-value" id="debugRawConf">--</span>
             </div>
             <div class="debug-row">
@@ -225,12 +324,20 @@ function _createDebugPanel() {
                 <span class="debug-value debug-pct" id="debugConfPct">0%</span>
             </div>
             <div class="debug-row">
+                <span class="debug-label">Gate (>75%)</span>
+                <span class="debug-value" id="debugGateStatus">--</span>
+            </div>
+            <div class="debug-row">
                 <span class="debug-label">Model</span>
                 <span class="debug-value" id="debugModel">--</span>
             </div>
             <div class="debug-row">
-                <span class="debug-label">Frames</span>
+                <span class="debug-label">Predictions</span>
                 <span class="debug-value" id="debugFrames">0</span>
+            </div>
+            <div class="debug-row">
+                <span class="debug-label">Buffer</span>
+                <span class="debug-value" id="debugBuffer">${wsBufferCount}/${wsBufferRequired}</span>
             </div>
             <div class="debug-row">
                 <span class="debug-label">Pipeline</span>
@@ -238,15 +345,17 @@ function _createDebugPanel() {
                     <span class="debug-dot pending"></span> Waiting
                 </span>
             </div>
+            <div class="debug-row">
+                <span class="debug-label">Status</span>
+                <span class="debug-value" id="debugStatus" style="font-size:0.65rem;">--</span>
+            </div>
         </div>
     `;
 
-    // Inject into the camera container (z-index above canvas but below processing overlay)
     const camContainer = document.getElementById('cameraContainer');
     if (camContainer) {
         camContainer.appendChild(panel);
     } else {
-        // Fallback: append to body
         document.body.appendChild(panel);
     }
 
@@ -256,7 +365,6 @@ function _createDebugPanel() {
 
 /**
  * Update the debug panel with the latest prediction data.
- * Called on EVERY WebSocket prediction — even low-confidence ones.
  */
 function _updateDebugPanel(data) {
     if (!_debugPanelEl) _createDebugPanel();
@@ -264,7 +372,7 @@ function _updateDebugPanel(data) {
     _debugPredictionCount++;
     const now = Date.now();
 
-    // Update FPS indicator (predictions per second)
+    // Update FPS indicator
     if (_debugLastUpdate > 0) {
         const dtMs = now - _debugLastUpdate;
         const fps = dtMs > 0 ? (1000 / dtMs).toFixed(1) : '--';
@@ -275,62 +383,82 @@ function _updateDebugPanel(data) {
 
     // Prediction text
     const predEl = document.getElementById('debugPrediction');
-    if (predEl) predEl.textContent = data.sign || '(none)';
+    if (predEl) predEl.textContent = data.word || data.raw_sign || '(none)';
 
-    // Raw confidence float (the key diagnostic value)
-    const rawConf = data.raw_confidence !== undefined ? data.raw_confidence : data.confidence;
+    // Raw confidence
+    const rawConf = data.confidence || 0;
     const rawConfEl = document.getElementById('debugRawConf');
     if (rawConfEl) {
-        rawConfEl.textContent = rawConf !== undefined ? rawConf.toFixed(6) : '--';
-        // Color code: green > 0.75, yellow 0.45-0.75, red < 0.45
+        rawConfEl.textContent = rawConf.toFixed(6);
         if (rawConf >= 0.75) rawConfEl.style.color = '#10b981';
-        else if (rawConf >= 0.45) rawConfEl.style.color = '#fbbf24';
+        else if (rawConf >= 0.50) rawConfEl.style.color = '#fbbf24';
         else rawConfEl.style.color = '#ef4444';
     }
 
     // Confidence bar
-    const confPct = rawConf !== undefined ? Math.round(rawConf * 100) : 0;
+    const confPct = Math.round(rawConf * 100);
     const confBar = document.getElementById('debugConfBar');
     const confPctEl = document.getElementById('debugConfPct');
     if (confBar) {
         confBar.style.width = confPct + '%';
         if (confPct >= 75) confBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
-        else if (confPct >= 45) confBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        else if (confPct >= 50) confBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
         else confBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
     }
     if (confPctEl) confPctEl.textContent = confPct + '%';
 
+    // Gate status (>75%)
+    const gateEl = document.getElementById('debugGateStatus');
+    if (gateEl) {
+        if (data.word) {
+            gateEl.innerHTML = '<span style="color:#10b981">✓ PASS</span>';
+        } else if (rawConf >= 0.75) {
+            gateEl.innerHTML = '<span style="color:#fbbf24">⏳ Stabilising</span>';
+        } else {
+            gateEl.innerHTML = '<span style="color:#ef4444">✗ BELOW</span>';
+        }
+    }
+
     // Model type
     const modelEl = document.getElementById('debugModel');
     if (modelEl) {
-        modelEl.textContent = data.model || '--';
-        modelEl.style.color = data.model === 'sklearn' ? '#06b6d4' :
-                              data.model === 'tflite' ? '#a78bfa' :
-                              data.model === 'keras' ? '#f472b6' : 'inherit';
+        modelEl.textContent = 'cnn_bilstm';
+        modelEl.style.color = '#f472b6';
     }
 
-    // Frame counter
+    // Prediction counter
     const framesEl = document.getElementById('debugFrames');
     if (framesEl) framesEl.textContent = _debugPredictionCount;
+
+    // Buffer status
+    const bufferEl = document.getElementById('debugBuffer');
+    if (bufferEl) bufferEl.textContent = `${wsBufferCount}/${wsBufferRequired}`;
 
     // Pipeline health
     const pipeEl = document.getElementById('debugPipeline');
     if (pipeEl) {
-        if (rawConf >= 0.75) {
-            pipeEl.innerHTML = '<span class="debug-dot healthy"></span> Healthy';
-        } else if (rawConf >= 0.45) {
+        if (data.word) {
+            pipeEl.innerHTML = '<span class="debug-dot healthy"></span> Detected ✓';
+        } else if (rawConf >= 0.75) {
+            pipeEl.innerHTML = '<span class="debug-dot warning"></span> Close';
+        } else if (rawConf >= 0.50) {
             pipeEl.innerHTML = '<span class="debug-dot warning"></span> Low Conf';
-        } else if (data.sign) {
-            pipeEl.innerHTML = '<span class="debug-dot danger"></span> Garbage Data';
+        } else if (data.raw_sign) {
+            pipeEl.innerHTML = '<span class="debug-dot danger"></span> Below Gate';
         } else {
-            pipeEl.innerHTML = '<span class="debug-dot pending"></span> No Prediction';
+            pipeEl.innerHTML = '<span class="debug-dot pending"></span> Buffering';
         }
     }
 
-    // Console log for cross-referencing with backend
+    // Status message
+    const statusEl = document.getElementById('debugStatus');
+    if (statusEl) {
+        statusEl.textContent = data.status || (data.word ? 'Detected: ' + data.word : '--');
+    }
+
     console.log(
-        `[DIAG Panel] #${_debugPredictionCount} | ` +
-        `sign="${data.sign}" | raw_conf=${rawConf?.toFixed(6)} | ` +
-        `model=${data.model}`
+        `[DIAG] #${_debugPredictionCount} | ` +
+        `word="${data.word}" raw="${data.raw_sign || ''}" | conf=${rawConf?.toFixed(6)} | ` +
+        `status="${data.status || ''}"`
     );
 }

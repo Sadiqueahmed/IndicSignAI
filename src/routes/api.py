@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify, send_from_directory, current_app
 import os
 import cv2
+import numpy as np
 import tempfile
 import traceback
 import subprocess
 import speech_recognition as sr
+from collections import Counter
 from werkzeug.utils import secure_filename
 
 # Import from core — use module-level access for mutable globals
@@ -13,8 +15,13 @@ from werkzeug.utils import secure_filename
 import src.core as core
 from src.core import (
     ensure_meitei_mayek, LANGUAGE_NAMES, STT_LANG_CODES,
-    DEEP_TRANSLATOR_CODES, ISL_VIDEO_DIR, fast_predict, extract_landmarks_for_model,
+    DEEP_TRANSLATOR_CODES, ISL_VIDEO_DIR,
+    # OLD pipeline (preserved for fallback)
+    fast_predict, extract_landmarks_for_model,
     MP_CONFIDENCE_GATE, MODEL_CONFIDENCE_MIN,
+    # NEW CNN+BiLSTM pipeline
+    preprocess_frame_for_cnn, cnn_bilstm_predict,
+    CNN_BILSTM_SEQ_LEN, CNN_BILSTM_SLIDE_POP,
     _translate_to_english, _map_words_to_videos, logger
 )
 from src.models.nlp_grammar import correct_sentence
@@ -27,7 +34,11 @@ def initialize():
 
 @api_bp.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'components': {'backend': 'online'}})
+    return jsonify({
+        'status': 'healthy',
+        'components': {'backend': 'online'},
+        'model': 'cnn_bilstm' if core.cnn_bilstm_model is not None else 'none'
+    })
 
 # --- Sentence Builder Routes ---
 current_sentence = []
@@ -162,6 +173,12 @@ def api_correct_and_translate():
 # --- Video Inference Pipeline ---
 @api_bp.route('/api/process-video', methods=['POST'])
 def process_video():
+    """Process an uploaded video using the CNN+BiLSTM 20-frame pipeline.
+    
+    Extracts frames from the video, groups them into 20-frame sequences,
+    and runs the CNN+BiLSTM model on each sequence. Uses a sliding window
+    approach identical to the live WebSocket pipeline.
+    """
     if 'video' not in request.files:
         return jsonify({'status': 'error', 'message': 'No video file provided'})
     
@@ -183,31 +200,66 @@ def process_video():
         cap = cv2.VideoCapture(temp_mp4.name)
         frames_processed = 0
         predictions = []
-        recent_landmarks = []
-        
-        frame_skip = 5
-        frame_idx = 0
 
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success: break
-            
-            frame_idx += 1
-            if frame_idx % frame_skip != 0: continue
-            
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = core.hand_detector.process(frame_rgb)
-            
-            if results.multi_hand_landmarks:
-                landmarks = extract_landmarks_for_model(frame, results)
-                if landmarks is not None:
-                    pred_class, conf, _ = fast_predict(landmarks)
-                    if pred_class and conf >= MP_CONFIDENCE_GATE:
+        # ── CNN+BiLSTM: Collect preprocessed frames ──
+        if core.cnn_bilstm_model is not None:
+            from collections import deque
+            frame_buffer = deque(maxlen=CNN_BILSTM_SEQ_LEN)
+            frame_skip = 2  # Sample every 2nd frame for denser temporal coverage
+            frame_idx = 0
+
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    break
+
+                frame_idx += 1
+                if frame_idx % frame_skip != 0:
+                    continue
+
+                # Preprocess: BGR → RGB, resize to 224×224
+                preprocessed = preprocess_frame_for_cnn(frame)
+                frame_buffer.append(preprocessed)
+                frames_processed += 1
+
+                # Run prediction when buffer is full
+                if len(frame_buffer) >= CNN_BILSTM_SEQ_LEN:
+                    pred_class, conf, _ = cnn_bilstm_predict(frame_buffer)
+                    if pred_class and conf >= MODEL_CONFIDENCE_MIN:
                         predictions.append((pred_class, conf))
-            
-            frames_processed += 1
 
-        cap.release()
+                    # Sliding window: pop oldest frames
+                    for _ in range(min(CNN_BILSTM_SLIDE_POP, len(frame_buffer))):
+                        frame_buffer.popleft()
+
+            cap.release()
+        else:
+            # ── FALLBACK: Old landmark pipeline (if CNN+BiLSTM not loaded) ──
+            frame_skip = 5
+            frame_idx = 0
+
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    break
+
+                frame_idx += 1
+                if frame_idx % frame_skip != 0:
+                    continue
+
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                results = core.hand_detector.process(frame_rgb)
+
+                if results.multi_hand_landmarks:
+                    landmarks = extract_landmarks_for_model(frame, results)
+                    if landmarks is not None:
+                        pred_class, conf, _ = fast_predict(landmarks)
+                        if pred_class and conf >= MP_CONFIDENCE_GATE:
+                            predictions.append((pred_class, conf))
+
+                frames_processed += 1
+
+            cap.release()
         
         if not predictions:
             return jsonify({'status': 'error', 'message': 'Could not confidently identify any sign.'})
@@ -227,7 +279,8 @@ def process_video():
             'success': True,
             'signs': [best_sign],
             'corrected': corrected_sentence,
-            'frames_analyzed': frames_processed
+            'frames_analyzed': frames_processed,
+            'model': 'cnn_bilstm' if core.cnn_bilstm_model is not None else 'legacy'
         })
         
     except Exception as e:

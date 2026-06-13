@@ -13,7 +13,9 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload
 app.config['JSON_AS_ASCII'] = False  # Critical for Meitei Mayek rendering
 
 # Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+# max_http_buffer_size increased for base64 JPEG frame transport (CNN+BiLSTM pipeline)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading',
+                    max_http_buffer_size=5 * 1024 * 1024)  # 5 MB
 
 # 1. Load Application Core
 from src.core import load_models
