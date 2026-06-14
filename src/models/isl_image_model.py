@@ -217,13 +217,19 @@ class ISLImageModel:
             logger.error(f"Failed to load ISL Image Model: {e}")
             return False
     
-    def preprocess_image(self, image):
+    def preprocess_image(self, image, is_rgb=False):
         """
         Preprocess image for model inference
         Following the notebook approach exactly
+        
+        Args:
+            image: input image (BGR or RGB)
+            is_rgb: if True, skip BGR→RGB conversion (image is already RGB)
         """
-        # Convert BGR to RGB if needed
-        if len(image.shape) == 3 and image.shape[2] == 3:
+        # Convert BGR to RGB if needed (skip if already RGB)
+        if is_rgb:
+            image_rgb = image
+        elif len(image.shape) == 3 and image.shape[2] == 3:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
             image_rgb = image
@@ -239,10 +245,14 @@ class ISLImageModel:
         
         return image_preprocessed
     
-    def predict(self, image):
+    def predict(self, image, is_rgb=False):
         """
         Predict ISL sign from image
         With prediction smoothing as shown in notebook
+        
+        Args:
+            image: input image (BGR or RGB)
+            is_rgb: if True, skip BGR→RGB conversion (image is already RGB)
         """
         if self.model is None:
             logger.error("Model not loaded")
@@ -250,7 +260,7 @@ class ISLImageModel:
         
         try:
             # Preprocess
-            processed = self.preprocess_image(image)
+            processed = self.preprocess_image(image, is_rgb=is_rgb)
             
             # Predict
             predictions = self.model.predict(processed, verbose=0)[0]
@@ -281,9 +291,15 @@ class ISLImageModel:
             logger.error(f"Prediction error: {e}")
             return None
     
-    def predict_from_hand_crop(self, frame, hand_landmarks, padding=20):
+    def predict_from_hand_crop(self, frame, hand_landmarks, padding=20, is_rgb=False):
         """
         Extract hand region from frame using landmarks and predict
+        
+        Args:
+            frame: input image (BGR or RGB)
+            hand_landmarks: object with .landmark list of points with .x, .y attributes
+            padding: pixel padding around the hand bounding box
+            is_rgb: if True, skip BGR→RGB conversion (frame is already RGB)
         """
         try:
             h, w, _ = frame.shape
@@ -307,8 +323,8 @@ class ISLImageModel:
             if hand_crop.size == 0:
                 return None
             
-            # Predict
-            result = self.predict(hand_crop)
+            # Predict (pass through is_rgb flag)
+            result = self.predict(hand_crop, is_rgb=is_rgb)
             if result:
                 result['bbox'] = (x_min, y_min, x_max, y_max)
             
@@ -355,10 +371,16 @@ def predict_sign(image):
             return None
     return model.predict(image)
 
-def predict_from_hand(frame, hand_landmarks):
-    """Predict from hand landmarks"""
+def predict_from_hand(frame, hand_landmarks, is_rgb=False):
+    """Predict from hand landmarks.
+    
+    Args:
+        frame: input image (BGR or RGB)
+        hand_landmarks: object with .landmark list of points with .x, .y attributes
+        is_rgb: if True, skip BGR→RGB conversion (frame is already RGB)
+    """
     model = get_isl_image_model()
     if model.model is None:
         if not model.load_model():
             return None
-    return model.predict_from_hand_crop(frame, hand_landmarks)
+    return model.predict_from_hand_crop(frame, hand_landmarks, is_rgb=is_rgb)

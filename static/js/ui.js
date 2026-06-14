@@ -41,99 +41,45 @@ async function initializeSystem() {
     }
 }
 
-// ========== RECORD / STOP ==========
-function toggleRecording() { isRecording ? stopRecording() : startRecording(); }
+// ========== MASTER TOGGLE: Start / Pause Detection ==========
+function toggleDetection() {
+    isDetectionActive = !isDetectionActive;
 
-function startRecording() {
-    if (!cameraStream) { showToast('Camera not available', 'error'); return; }
-    recordedChunks = [];
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9'
-        : MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
-    mediaRecorder = new MediaRecorder(cameraStream, mimeType ? { mimeType } : {});
-    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-    mediaRecorder.onstop = () => handleRecordingStopped();
-    mediaRecorder.start(200);
-    isRecording = true;
-    document.getElementById('recordBtn').classList.add('recording');
-    document.getElementById('cameraContainer').classList.add('recording');
+    const btn = document.getElementById('toggleDetectionBtn');
+    const icon = document.getElementById('toggleDetectionIcon');
+    const label = document.getElementById('toggleDetectionLabel');
+    const container = document.getElementById('cameraContainer');
     const badge = document.getElementById('detectionBadge');
-    badge.classList.remove('active');
-    badge.innerHTML = '<i class="fa-solid fa-circle" style="color:#ef4444"></i><span>Recording...</span>';
-    recordStartTime = Date.now();
-    const timerEl = document.getElementById('recordTimer');
-    timerEl.classList.add('visible'); timerEl.textContent = '0:00';
-    recordTimerInterval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
-        timerEl.textContent = Math.floor(elapsed / 60) + ':' + String(elapsed % 60).padStart(2, '0');
-    }, 500);
-}
 
-function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-    isRecording = false;
-    document.getElementById('recordBtn').classList.remove('recording');
-    document.getElementById('cameraContainer').classList.remove('recording');
-    clearInterval(recordTimerInterval);
-    document.getElementById('recordTimer').classList.remove('visible');
-}
+    if (isDetectionActive) {
+        // ── START DETECTION ──
+        btn.classList.add('active');
+        icon.className = 'fa-solid fa-pause';
+        label.textContent = 'Pause Detection';
+        container.classList.add('detecting');
+        badge.classList.add('active');
+        badge.innerHTML = '<i class="fa-solid fa-circle detecting-pulse" style="color:#10b981; font-size:0.5rem;"></i><span>Detection active — show your hand</span>';
+        showToast('Detection started — stream is live', 'success');
+        console.log('[DETECTION] ▶ Started — frames will be sent to backend');
+    } else {
+        // ── PAUSE DETECTION ──
+        btn.classList.remove('active');
+        icon.className = 'fa-solid fa-play';
+        label.textContent = 'Start Detection';
+        container.classList.remove('detecting');
+        badge.classList.add('active');
+        badge.innerHTML = '<i class="fa-solid fa-video"></i><span>Detection paused — tap to resume</span>';
+        showToast('Detection paused', 'success');
+        console.log('[DETECTION] ⏸ Paused — no frames sent');
 
-async function handleRecordingStopped() {
-    if (recordedChunks.length === 0) { showToast('No video data recorded', 'error'); resetBadge(); return; }
-    const blob = new Blob(recordedChunks, { type: recordedChunks[0].type || 'video/webm' });
-    recordedChunks = [];
-    isProcessing = true;
-    document.getElementById('processingOverlay').classList.add('visible');
-
-    const formData = new FormData();
-    formData.append('video', blob, 'sign_recording.webm');
-    formData.append('target_lang', document.getElementById('targetLanguage').value);
-
-    try {
-        const response = await fetch('/api/process-video', { method: 'POST', body: formData });
-        const data = await response.json();
-        document.getElementById('processingOverlay').classList.remove('visible');
-        isProcessing = false;
-
-        if (data.status === 'error') {
-            document.getElementById('currentSign').textContent = '--';
-            document.getElementById('signsDetail').textContent = data.message || 'Processing failed';
-            showToast(data.message || 'No signs detected', 'error');
-        } else if (data.success && data.signs && data.signs.length > 0) {
-            currentSign = data.signs.join(' ');
-            document.getElementById('currentSign').textContent = data.signs.join(', ');
-            document.getElementById('signsDetail').textContent =
-                data.signs.length + ' sign' + (data.signs.length > 1 ? 's' : '') + ' detected';
-            document.getElementById('addWordBtn').disabled = false;
-            const textarea = document.getElementById('sentenceText');
-            if (textarea && data.corrected) textarea.value = data.corrected;
-            sentenceWords = data.signs;
-            const wc = document.getElementById('wordCount');
-            if (wc) wc.textContent = data.signs.length + ' word' + (data.signs.length > 1 ? 's' : '');
-            if (data.corrected) document.getElementById('originalText').textContent = data.corrected;
-            if (data.translated) document.getElementById('translatedText').textContent = data.translated;
-            if (data.corrected && videoQueue) {
-                const ok = videoQueue.enqueueSentence(data.corrected);
-                if (ok) videoQueue.play();
-            }
-            showToast('Detected: ' + data.signs.join(', '), 'success');
-        } else {
-            document.getElementById('currentSign').textContent = '--';
-            document.getElementById('signsDetail').textContent = 'No signs detected  -  try recording longer';
-            showToast('No signs detected.', 'error');
+        // If the grammar debounce timer is running, fire it immediately
+        // so we don't lose buffered signs
+        if (grammarDebounceTimer) {
+            clearTimeout(grammarDebounceTimer);
+            grammarDebounceTimer = null;
+            _triggerGrammarAndTranslation();
         }
-    } catch (err) {
-        document.getElementById('processingOverlay').classList.remove('visible');
-        isProcessing = false;
-        console.error('Process video error:', err);
-        showToast('Processing failed', 'error');
     }
-    resetBadge();
-}
-
-function resetBadge() {
-    const badge = document.getElementById('detectionBadge');
-    badge.classList.add('active');
-    badge.innerHTML = '<i class="fa-solid fa-video"></i><span>Camera ready  -  tap record</span>';
 }
 
 // ========== SENTENCE MANAGEMENT ==========
@@ -606,7 +552,7 @@ document.getElementById('targetLanguage').addEventListener('change', function ()
     // in the newly selected language
     lastTranslatedSign = null;
     if (currentSign && currentMode === 1) {
-        _autoTranslateLiveSign(currentSign);
+        translateCurrent();
     }
     // Also re-translate any sentence in the builder
     const sentence = document.getElementById('sentenceText').value.trim();

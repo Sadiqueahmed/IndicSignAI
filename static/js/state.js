@@ -14,14 +14,10 @@ let sentenceWords = [];
 let lastTranslatedSign = null;
 let liveTranslationInFlight = false;
 
-// Video recording state
-let mediaRecorder = null;
-let recordedChunks = [];
+// Detection state
 let cameraStream = null;
-let isRecording = false;
+let isDetectionActive = false;   // Master toggle: true = streaming frames to backend
 let isProcessing = false;
-let recordTimerInterval = null;
-let recordStartTime = 0;
 
 // MediaPipe client-side instances
 let mpHands = null;
@@ -53,6 +49,15 @@ const FRAME_CAPTURE_QUALITY = 0.7;    // JPEG quality (0.0-1.0)
 let wsBufferCount = 0;
 let wsBufferRequired = 20;
 let wsBufferReady = false;
+
+// ── ISL_IMAGE Model: Live Sentence Buffer & Grammar Debounce ──
+// Signs are accumulated here and sent for grammar correction + translation
+// only after a pause (no new sign for GRAMMAR_DEBOUNCE_MS).
+let liveSentenceBuffer = [];
+let grammarDebounceTimer = null;
+const GRAMMAR_DEBOUNCE_MS = 2000;   // 2 seconds of silence triggers translation
+let lastBufferedSign = null;        // Avoid consecutive duplicates in buffer
+let grammarTranslationInFlight = false;
 
 // Video playback queue instance
 var videoQueue = null;

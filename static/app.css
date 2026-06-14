@@ -1,4 +1,4 @@
-﻿/* app.css — Extracted from app.html */
+/* app.css — Extracted from app.html */
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -116,16 +116,6 @@
             transition: border-color 0.3s;
         }
 
-        .camera-container.recording {
-            border-color: #ef4444;
-            animation: recording-pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes recording-pulse {
-            0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            50%  { border-color: #f87171; box-shadow: 0 0 20px 4px rgba(239, 68, 68, 0.25); }
-        }
-
         .camera-feed { width: 100%; height: 100%; object-fit: cover; }
 
         .camera-overlay {
@@ -151,41 +141,76 @@
         .detecting-pulse { animation: detectPulse 1.5s ease-in-out infinite; }
         @keyframes detectPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
 
-        /* ===== RECORD BUTTON ===== */
-        .record-controls {
+        /* ===== DETECTION TOGGLE BUTTON ===== */
+        .detection-toggle-wrap {
             position: absolute; bottom: 0.75rem; left: 50%; transform: translateX(-50%);
-            display: flex; align-items: center; gap: 0.75rem;
             pointer-events: auto; z-index: 5;
         }
 
-        .record-btn {
-            width: 56px; height: 56px; border-radius: 50%;
-            border: 3px solid rgba(255, 255, 255, 0.9);
-            background: transparent; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.25s; position: relative;
+        .detection-toggle-btn {
+            display: flex; align-items: center; gap: 0.5rem;
+            padding: 0.6rem 1.4rem;
+            border-radius: 50px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.82rem; font-weight: 600;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
         }
 
-        .record-btn::after {
-            content: ''; display: block;
-            width: 28px; height: 28px; border-radius: 50%;
-            background: #ef4444; transition: all 0.25s;
+        .detection-toggle-btn i {
+            font-size: 0.85rem;
+            transition: transform 0.3s, color 0.3s;
         }
 
-        .record-btn.recording::after {
-            width: 20px; height: 20px; border-radius: 4px;
+        .detection-toggle-btn:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+            background: rgba(99, 102, 241, 0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.2);
         }
 
-        .record-btn:hover { transform: scale(1.1); }
-
-        .record-timer {
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-            padding: 0.25rem 0.6rem; border-radius: 50px;
-            font-size: 0.75rem; font-weight: 600; color: #f87171;
-            display: none;
+        .detection-toggle-btn:active {
+            transform: scale(0.95);
+            transition: transform 0.1s;
         }
 
-        .record-timer.visible { display: block; }
+        /* Active state: green pulsing glow */
+        .detection-toggle-btn.active {
+            border-color: rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.15));
+            color: #34d399;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2), 0 0 0 1px rgba(16, 185, 129, 0.1);
+            animation: detectionPulse 2s ease-in-out infinite;
+        }
+
+        .detection-toggle-btn.active i { color: #34d399; }
+
+        .detection-toggle-btn.active:hover {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(6, 182, 212, 0.25));
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.3), 0 4px 20px rgba(16, 185, 129, 0.15);
+        }
+
+        @keyframes detectionPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.2), 0 0 0 0 rgba(16, 185, 129, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.3), 0 0 0 8px rgba(16, 185, 129, 0); }
+        }
+
+        /* Camera container active detection border */
+        .camera-container.detecting {
+            border-color: rgba(16, 185, 129, 0.5);
+            animation: detectingBorder 2s ease-in-out infinite;
+        }
+
+        @keyframes detectingBorder {
+            0%, 100% { border-color: rgba(16, 185, 129, 0.5); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
+            50%  { border-color: rgba(16, 185, 129, 0.7); box-shadow: 0 0 15px 2px rgba(16, 185, 129, 0.1); }
+        }
 
         /* ===== PROCESSING OVERLAY ===== */
         .processing-overlay {
@@ -596,19 +621,7 @@
         .ctrl-btn:active { transform: scale(0.93); transition: transform 0.1s; }
         .ctrl-btn:hover { transform: translateY(-1px); }
         .mic-btn:active { transform: scale(0.9); transition: transform 0.1s; }
-        .record-btn:active { transform: scale(0.9); transition: transform 0.1s; }
-
-        /* ===== RECORD BUTTON PULSE RING ===== */
-        .record-btn.recording::before {
-            content: ''; position: absolute;
-            width: 100%; height: 100%; border-radius: 50%;
-            border: 2px solid #ef4444;
-            animation: recordRing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        @keyframes recordRing {
-            0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(1.8); opacity: 0; }
-        }
+        .detection-toggle-btn:active { transform: scale(0.95); transition: transform 0.1s; }
 
         /* ===== PRELOADER ===== */
         .preloader {

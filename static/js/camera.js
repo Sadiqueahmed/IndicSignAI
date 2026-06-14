@@ -1,13 +1,16 @@
 /**
  * camera.js — MediaPipe Hands + WebRTC Camera Lifecycle
  * 
- * ARCHITECTURE (CNN+BiLSTM):
- * MediaPipe Hands still runs client-side for VISUAL FEEDBACK ONLY
- * (skeleton drawing, bounding box, fingertip highlights).
+ * ARCHITECTURE (ISL_IMAGE):
+ * MediaPipe Hands runs client-side for VISUAL FEEDBACK
+ * (skeleton drawing, bounding box, fingertip highlights)
+ * AND for providing hand landmarks to the backend.
  * 
- * Instead of sending extracted landmarks to the backend, we now send
- * the RAW camera frame (base64 JPEG) via sendFrameViaWebSocket().
- * The backend accumulates 20 frames and runs the CNN+BiLSTM model.
+ * We send the RAW camera frame + landmarks via sendFrameViaWebSocket().
+ * The backend crops the hand and runs the ISL_IMAGE model (MobileNetV2 + Transformer).
+ * 
+ * Frame sending is gated by `isDetectionActive` — the user must click
+ * "Start Detection" before any frames are streamed to the server.
  * 
  * Depends on: state.js, websocket.js (sendFrameViaWebSocket)
  */
@@ -45,7 +48,7 @@ function initMediaPipeHands(videoElement) {
             width: 640, height: 480
         });
         mpCamera.start();
-        console.log('✔ MediaPipe Hands initialized (visual-only mode for CNN+BiLSTM)');
+        console.log('✔ MediaPipe Hands initialized (ISL_IMAGE pipeline)');
     } catch (err) {
         console.error('MediaPipe Hands init failed:', err);
     }
@@ -60,10 +63,10 @@ function onMediaPipeResults(results, canvas, ctx, videoElement) {
     const handsDetected = results.multiHandLandmarks && results.multiHandLandmarks.length > 0;
 
     if (handsDetected) {
-        if (!isRecording) {
+        if (isDetectionActive) {
             const badge = document.getElementById('detectionBadge');
             badge.classList.add('active');
-            badge.innerHTML = '<i class="fa-solid fa-hand" style="color:#10b981"></i><span>Hand detected — capturing frames</span>';
+            badge.innerHTML = '<i class="fa-solid fa-hand" style="color:#10b981"></i><span>Hand detected — streaming</span>';
         }
 
         for (const landmarks of results.multiHandLandmarks) {
@@ -101,21 +104,26 @@ function onMediaPipeResults(results, canvas, ctx, videoElement) {
             ctx.strokeRect(bx, by, bw, bh);
             ctx.setLineDash([]);
         }
-    } else if (!isRecording && !isProcessing) {
+    } else if (!isProcessing) {
         const badge = document.getElementById('detectionBadge');
         badge.classList.add('active');
-        badge.innerHTML = '<i class="fa-solid fa-video"></i><span>Camera ready — show your hand</span>';
+        if (isDetectionActive) {
+            badge.innerHTML = '<i class="fa-solid fa-video"></i><span>Detection active — show your hand</span>';
+        } else {
+            badge.innerHTML = '<i class="fa-solid fa-video"></i><span>Camera ready — tap Start Detection</span>';
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // CNN+BiLSTM: Send RAW video frame (not landmarks) to backend
-    // We send frames continuously (throttled) regardless of hand
-    // detection — the model itself determines what gesture is shown.
-    // However, we only send when hands ARE detected to avoid wasting
-    // bandwidth on empty frames.
+    // ISL_IMAGE: Send RAW video frame + landmarks to backend
+    // The backend uses landmarks to crop the hand region, then runs
+    // the ISL_IMAGE model (MobileNetV2 + Transformer) on the crop.
+    // We only send when hands ARE detected since landmarks are required.
     // ═══════════════════════════════════════════════════════════════
     if (handsDetected && videoElement) {
-        sendFrameViaWebSocket(videoElement);
+        // Pass the first detected hand's landmarks to the WebSocket sender
+        const firstHandLandmarks = results.multiHandLandmarks[0];
+        sendFrameViaWebSocket(videoElement, firstHandLandmarks);
     }
 
     ctx.restore();
@@ -159,5 +167,4 @@ function stopCamera() {
     }
     const video = document.getElementById('cameraPreview');
     if (video) video.srcObject = null;
-    if (isRecording) stopRecording();
 }

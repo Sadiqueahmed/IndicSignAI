@@ -143,10 +143,11 @@
                                     <i class="fa-solid fa-video"></i>
                                     <span>Camera ready</span>
                                 </div>
-                                <div class="record-controls">
-                                    <span class="record-timer" id="recordTimer">0:00</span>
-                                    <button class="record-btn" id="recordBtn" onclick="toggleRecording()"
-                                        title="Record"></button>
+                                <div class="detection-toggle-wrap">
+                                    <button class="detection-toggle-btn" id="toggleDetectionBtn" onclick="toggleDetection()">
+                                        <i class="fa-solid fa-play" id="toggleDetectionIcon"></i>
+                                        <span id="toggleDetectionLabel">Start Detection</span>
+                                    </button>
                                 </div>
                             </div>
                             <div class="processing-overlay" id="processingOverlay">
@@ -159,7 +160,7 @@
                             <div class="result-label">Detected Signs</div>
                             <div class="result-word" id="currentSign">--</div>
                             <div class="confidence-text" id="signsDetail" style="margin-top:0.4rem;">
-                                Record a sign to detect
+                                Tap Start Detection to begin
                             </div>
                         </div>
                     </div>
@@ -169,6 +170,27 @@
                 <div class="mode-col">
                     <div class="section-label">
                         <i class="fa-solid fa-pencil"></i> Results & Translation
+                    </div>
+
+                    <!-- Live Sentence Buffer (auto-populated by WebSocket) -->
+                    <div class="panel" style="flex: 0 0 auto;">
+                        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <i class="fa-solid fa-layer-group"></i>
+                                Live Sign Buffer
+                            </div>
+                            <button class="ctrl-btn danger" onclick="clearLiveSentenceBuffer()" style="padding:3px 10px; font-size:0.7rem;">
+                                <i class="fa-solid fa-trash"></i> Clear
+                            </button>
+                        </div>
+                        <div id="liveSentenceBufferDisplay" style="
+                            min-height: 36px; padding: 8px 12px;
+                            background: rgba(0,0,0,0.2); border-radius: 8px;
+                            display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+                            font-family: 'Inter', sans-serif;
+                        ">
+                            <span style="color:#6b7280; font-style:italic;">Waiting for signs...</span>
+                        </div>
                     </div>
 
                     <!-- Sentence Builder -->

@@ -1,15 +1,14 @@
 /**
- * websocket.js — Real-Time WebSocket Inference (CNN+BiLSTM Pipeline)
+ * websocket.js — Real-Time WebSocket Inference (ISL_IMAGE Pipeline)
  * 
- * PREDICTION FLOW (Modules 1-3):
- *   1. Frontend sends base64 JPEG frames via WebSocket 'frame' event
- *   2. Backend buffers 20 frames → CNN+BiLSTM inference
- *   3. Backend emits 'prediction_result' with { word, confidence }
- *      - 'word' is present ONLY when confidence > 0.75
- *   4. Frontend receives 'prediction_result':
- *      - Updates UI with the detected English word
- *      - IMMEDIATELY triggers fetch to /api/translate with selected language
- *   5. If 'word' is null → show diagnostic info (low-confidence / buffering)
+ * PREDICTION FLOW:
+ *   1. Frontend captures base64 JPEG frame + MediaPipe landmarks
+ *   2. Sends both via WebSocket 'frame' event
+ *   3. Backend crops hand from image using landmarks → ISL_IMAGE model (160×160)
+ *   4. Backend emits 'prediction' with { sign, confidence }
+ *   5. Frontend accumulates signs into liveSentenceBuffer
+ *   6. After 2s of silence, sends entire buffer to /api/correct-and-translate
+ *   7. Grammar-corrected + translated result displayed in UI
  * 
  * Depends on: state.js
  */
@@ -19,15 +18,15 @@ function initWebSocket() {
         wsSocket = io({ transports: ['websocket', 'polling'] });
 
         wsSocket.on('connect', () => {
-            console.log('[WS] Connected to server for CNN+BiLSTM inference');
+            console.log('[WS] Connected to server for ISL_IMAGE inference');
         });
         wsSocket.on('disconnect', () => {
             console.log('[WS] Disconnected');
         });
         wsSocket.on('status', (data) => {
             console.log('[WS] Server status:', data);
-            if (data.model === 'cnn_bilstm') {
-                console.log('[WS] ✓ CNN+BiLSTM model active (seq_len=' + data.seq_len + ')');
+            if (data.model === 'isl_image') {
+                console.log('[WS] ✓ ISL_IMAGE model active (MobileNetV2 + Transformer)');
                 console.log('[WS] ✓ Confidence threshold: ' + data.confidence_threshold);
             } else {
                 console.warn('[WS] ✗ No model loaded on server');
@@ -35,21 +34,11 @@ function initWebSocket() {
         });
 
         // ══════════════════════════════════════════════════════════
-        // MODULE 3: Listen for 'prediction_result' from backend
-        // This is the SOLE prediction event. The backend only sends
-        // 'word' when confidence > 0.75.
+        // Listen for 'prediction' from backend (ISL_IMAGE model)
         // ══════════════════════════════════════════════════════════
-        wsSocket.on('prediction_result', (data) => {
-            console.log('[WS] prediction_result received:', JSON.stringify(data));
-            handlePredictionResult(data);
-        });
-
-        // ── CNN+BiLSTM: Buffer status events from server ──
-        wsSocket.on('buffer_status', (data) => {
-            wsBufferCount = data.count;
-            wsBufferRequired = data.required;
-            wsBufferReady = data.ready;
-            _updateBufferIndicator(data);
+        wsSocket.on('prediction', (data) => {
+            console.log('[WS] prediction received:', JSON.stringify(data));
+            handleWebSocketPrediction(data);
         });
 
         // Create offscreen canvas for frame capture (compressed JPEG for WebSocket)
@@ -65,17 +54,18 @@ function initWebSocket() {
 
 
 /**
- * MODULE 3 — Frontend Sync: Handle prediction_result from backend
+ * Handle prediction from backend (ISL_IMAGE model)
  * 
- * CASE 1: data.word is present → High-confidence detection
- *   - Update UI with the detected English word
- *   - IMMEDIATELY trigger /api/translate with selected target_language
+ * CASE 1: data.sign is present → High-confidence detection
+ *   - Update UI with the detected sign
+ *   - Append to liveSentenceBuffer (avoid consecutive duplicates)
+ *   - Reset the grammar debounce timer (2s)
  * 
- * CASE 2: data.word is null → Below threshold / buffering
+ * CASE 2: data.sign is null → Below threshold / error
  *   - Show diagnostic status info
  */
-function handlePredictionResult(data) {
-    if (isRecording || isProcessing) return;
+function handleWebSocketPrediction(data) {
+    if (!isDetectionActive || isProcessing) return;
 
     const badge = document.getElementById('detectionBadge');
 
@@ -83,60 +73,69 @@ function handlePredictionResult(data) {
     _updateDebugPanel(data);
 
     // ═══════════════════════════════════════════════════════════════
-    // CASE 1: CONFIDENT DETECTION — 'word' is present (conf > 0.75)
+    // CASE 1: CONFIDENT DETECTION — 'sign' is present (conf > 0.65)
     // ═══════════════════════════════════════════════════════════════
-    if (data.word) {
+    if (data.sign) {
         const confPct = Math.round(data.confidence * 100);
-        console.log(`[PREDICTION] ✓ Detected: "${data.word}" at ${confPct}% confidence`);
+        console.log(`[PREDICTION] ✓ Detected: "${data.sign}" at ${confPct}% confidence`);
 
         // Update detection badge in camera overlay
         if (badge) {
             badge.classList.add('active');
             badge.innerHTML = '<i class="fa-solid fa-hand" style="color:#10b981"></i>' +
-                '<span>' + data.word + ' (' + confPct + '%)</span>';
+                '<span>' + data.sign + ' (' + confPct + '%)</span>';
         }
 
         // Update global state
-        currentSign = data.word;
+        currentSign = data.sign;
         currentConfidence = data.confidence;
 
         // Update the detected-sign display card
         const signEl = document.getElementById('currentSign');
-        if (signEl) signEl.textContent = data.word;
+        if (signEl) signEl.textContent = data.sign;
 
         const confEl = document.getElementById('signsDetail');
         if (confEl) {
             let confClass = confPct >= 85 ? 'conf-high' : confPct >= 60 ? 'conf-mid' : 'conf-low';
             confEl.innerHTML = '<span class="conf-value ' + confClass + '">' + confPct +
-                '%</span> confidence &middot; CNN+BiLSTM &middot; Live';
+                '%</span> confidence &middot; ISL_IMAGE &middot; Live';
         }
 
         // Enable the "Add Word" button
         const addBtn = document.getElementById('addWordBtn');
         if (addBtn) addBtn.disabled = false;
 
-        // Update the "English" output panel
+        // ══════════════════════════════════════════════════════════
+        // SENTENCE BUFFER: Append sign (avoid consecutive duplicates)
+        // ══════════════════════════════════════════════════════════
+        if (data.sign !== lastBufferedSign) {
+            liveSentenceBuffer.push(data.sign);
+            lastBufferedSign = data.sign;
+            console.log(`[BUFFER] Added "${data.sign}" → buffer: [${liveSentenceBuffer.join(', ')}]`);
+
+            // Update the live sentence buffer display
+            _updateSentenceBufferUI();
+        }
+
+        // Update the "English" output panel with raw buffer contents
         const origEl = document.getElementById('originalText');
-        if (origEl) origEl.textContent = data.word;
+        if (origEl) origEl.textContent = liveSentenceBuffer.join(' ');
 
         // ══════════════════════════════════════════════════════════
-        // MODULE 3: IMMEDIATELY trigger /api/translate
-        // Only fires when the word is DIFFERENT from the last one
-        // (debounce to avoid spamming the API)
+        // GRAMMAR DEBOUNCE: Reset the 2-second timer
+        // When the timer fires, send the full buffer for grammar
+        // correction + translation (NOT word-by-word).
         // ══════════════════════════════════════════════════════════
-        if (data.word !== lastTranslatedSign && !liveTranslationInFlight) {
-            console.log(`[TRANSLATION] Triggering auto-translate: "${data.word}"`);
-            _autoTranslateLiveSign(data.word);
-        }
+        _resetGrammarDebounce();
 
         // Reset tracking state
         wsConsecutiveCount = 0;
-        wsLastSign = data.word;
+        wsLastSign = data.sign;
         return;
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // CASE 2: LOW CONFIDENCE — 'word' is null
+    // CASE 2: LOW CONFIDENCE — 'sign' is null
     // ═══════════════════════════════════════════════════════════════
     if (data.raw_sign && data.confidence > 0) {
         const rawPct = Math.round(data.confidence * 100);
@@ -151,79 +150,188 @@ function handlePredictionResult(data) {
 
 
 /**
- * MODULE 3 — Translation Handoff
+ * GRAMMAR DEBOUNCE — Triggers grammar correction + translation
+ * after 2 seconds of no new sign detections.
  * 
- * IMMEDIATELY triggers a fetch call to /api/translate when a confident
- * sign is detected. Uses the currently selected target_language from
- * the UI dropdown (#targetLanguage).
- * 
- * @param {string} word - The detected English word (e.g., "Hello")
+ * This ensures we build a FULL sentence before translating,
+ * instead of translating word-by-word.
  */
-async function _autoTranslateLiveSign(word) {
-    if (!word || !word.trim()) return;
+function _resetGrammarDebounce() {
+    // Clear any existing timer
+    if (grammarDebounceTimer) {
+        clearTimeout(grammarDebounceTimer);
+        grammarDebounceTimer = null;
+    }
 
-    // Get the currently selected target language from the dropdown
+    // Set new timer — fires after GRAMMAR_DEBOUNCE_MS (2000ms) of silence
+    grammarDebounceTimer = setTimeout(() => {
+        grammarDebounceTimer = null;
+        _triggerGrammarAndTranslation();
+    }, GRAMMAR_DEBOUNCE_MS);
+}
+
+
+/**
+ * Send the accumulated sentence buffer to /api/correct-and-translate
+ * for grammar correction and native language translation.
+ * 
+ * The endpoint accepts: { words: ['I', 'GO', 'HOME'], target_lang: 'manipuri' }
+ * and returns:          { corrected: 'I am going home.', translated: 'ꯑꯩ ꯌꯨꯝ ꯆꯠꯂꯤ.' }
+ */
+async function _triggerGrammarAndTranslation() {
+    if (liveSentenceBuffer.length === 0) return;
+    if (grammarTranslationInFlight) return;
+
+    // Get the target language from the dropdown
     const langSelect = document.getElementById('targetLanguage');
     if (!langSelect) {
         console.error('[TRANSLATION] targetLanguage dropdown not found!');
         return;
     }
     const targetLang = langSelect.value;
-    console.log(`[TRANSLATION] Calling /api/translate: word="${word}", target_lang="${targetLang}"`);
 
-    liveTranslationInFlight = true;
-    lastTranslatedSign = word;
+    console.log(`[GRAMMAR] Triggering correct-and-translate for buffer: [${liveSentenceBuffer.join(', ')}]`);
+    console.log(`[GRAMMAR] Target language: ${targetLang}`);
+
+    grammarTranslationInFlight = true;
 
     try {
-        const resp = await fetch('/api/translate', {
+        const resp = await fetch('/api/correct-and-translate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                text: word,
-                target_lang: targetLang,
-                direction: 'en_to_regional'
+                words: [...liveSentenceBuffer],  // copy to avoid mutation
+                target_lang: targetLang
             })
         });
 
         if (!resp.ok) {
             const errData = await resp.json().catch(() => ({}));
-            console.error('[TRANSLATION] HTTP error', resp.status, errData);
+            console.error('[GRAMMAR] HTTP error', resp.status, errData);
             _showTranslationError();
             return;
         }
 
-        const data = await resp.json();
-        if (data.success && data.data) {
+        const result = await resp.json();
+        if (result.success && result.data) {
+            const corrected = result.data.corrected;
+            const translated = result.data.translated;
+
+            console.log(`[GRAMMAR] ✓ Corrected: "${corrected}"`);
+            console.log(`[GRAMMAR] ✓ Translated: "${translated}" (${targetLang})`);
+
+            // Update the "English" panel with grammar-corrected sentence
+            const origEl = document.getElementById('originalText');
+            if (origEl) origEl.textContent = corrected;
+
+            // Update the "Translated" panel with native translation
             const transEl = document.getElementById('translatedText');
             if (transEl) {
                 transEl.style.color = '';
-                transEl.textContent = data.data.translated;
+                transEl.textContent = translated;
             }
-            console.log(`[TRANSLATION] ✓ "${word}" → "${data.data.translated}" (${targetLang})`);
+
+            // Update the sentence buffer display to show it's been processed
+            const bufferEl = document.getElementById('liveSentenceBufferDisplay');
+            if (bufferEl) {
+                bufferEl.innerHTML =
+                    '<span style="color:#10b981;">✓ </span>' +
+                    '<span style="color:#d1d5db;">' + corrected + '</span>';
+            }
+
+            // Also populate the Sentence Builder textarea for manual editing
+            const sentenceTextEl = document.getElementById('sentenceText');
+            if (sentenceTextEl) {
+                sentenceTextEl.value = corrected;
+            }
+            const wordCountEl = document.getElementById('wordCount');
+            if (wordCountEl) {
+                const wc = corrected.split(/\s+/).filter(w => w).length;
+                wordCountEl.textContent = wc + ' word' + (wc !== 1 ? 's' : '');
+            }
         } else {
-            console.error('[TRANSLATION] Backend error:', data.error || data.message);
+            console.error('[GRAMMAR] Backend error:', result.error || result.message);
             _showTranslationError();
         }
     } catch (err) {
-        console.error('[TRANSLATION] Network error:', err);
+        console.error('[GRAMMAR] Network error:', err);
         _showTranslationError();
     } finally {
-        liveTranslationInFlight = false;
+        grammarTranslationInFlight = false;
+        // Clear the buffer after successful translation
+        liveSentenceBuffer = [];
+        lastBufferedSign = null;
     }
 }
 
 
 /**
- * CNN+BiLSTM Frame Sender
+ * Update the live sentence buffer display in the UI.
+ * Shows the raw accumulated signs before grammar correction.
+ */
+function _updateSentenceBufferUI() {
+    const bufferEl = document.getElementById('liveSentenceBufferDisplay');
+    if (!bufferEl) return;
+
+    if (liveSentenceBuffer.length === 0) {
+        bufferEl.innerHTML = '<span style="color:#6b7280; font-style:italic;">Waiting for signs...</span>';
+    } else {
+        const pills = liveSentenceBuffer.map(w =>
+            '<span style="display:inline-block; background:rgba(99,102,241,0.2); ' +
+            'border:1px solid rgba(99,102,241,0.4); border-radius:6px; padding:2px 8px; ' +
+            'margin:2px; font-size:0.8rem; color:#a5b4fc;">' + w + '</span>'
+        ).join(' ');
+        bufferEl.innerHTML = pills;
+    }
+}
+
+
+/**
+ * Clear the live sentence buffer (called from UI "Clear" button or programmatically).
+ */
+function clearLiveSentenceBuffer() {
+    liveSentenceBuffer = [];
+    lastBufferedSign = null;
+    if (grammarDebounceTimer) {
+        clearTimeout(grammarDebounceTimer);
+        grammarDebounceTimer = null;
+    }
+    _updateSentenceBufferUI();
+
+    const origEl = document.getElementById('originalText');
+    if (origEl) origEl.textContent = '--';
+    const transEl = document.getElementById('translatedText');
+    if (transEl) transEl.textContent = '--';
+}
+
+
+/**
+ * Show a translation error in the UI.
+ */
+function _showTranslationError() {
+    const transEl = document.getElementById('translatedText');
+    if (transEl) {
+        transEl.style.color = '#ef4444';
+        transEl.textContent = 'Translation failed — check console';
+    }
+}
+
+
+/**
+ * ISL_IMAGE Frame Sender
  * 
  * Captures the current video frame from the <video> element, compresses it
- * to a base64 JPEG, and sends it to the backend via WebSocket.
+ * to a base64 JPEG (quality 0.5 for bandwidth), and sends it along with
+ * the current MediaPipe hand landmarks to the backend via WebSocket.
  * 
  * @param {HTMLVideoElement} videoElement - The camera preview element
+ * @param {Array} landmarks - MediaPipe hand landmarks (21 points with x,y,z)
  */
-function sendFrameViaWebSocket(videoElement) {
+function sendFrameViaWebSocket(videoElement, landmarks) {
+    // ── MASTER GATEKEEPER: Only stream when detection is active ──
+    if (!isDetectionActive) return;
     if (!wsSocket || !wsSocket.connected) return;
-    if (isRecording || isProcessing) return;
+    if (isProcessing) return;
 
     const now = Date.now();
     if (now - wsLastSendTime < WS_THROTTLE_MS) return;
@@ -231,57 +339,28 @@ function sendFrameViaWebSocket(videoElement) {
     if (!frameCaptureCanvas || !frameCaptureCtx) return;
     if (!videoElement || videoElement.readyState < 2) return;
 
+    // Must have landmarks to crop hand on backend
+    if (!landmarks || landmarks.length === 0) return;
+
     // Draw current video frame onto the offscreen canvas (downscaled)
     frameCaptureCtx.drawImage(videoElement, 0, 0, FRAME_CAPTURE_WIDTH, FRAME_CAPTURE_HEIGHT);
 
-    // Convert to base64 JPEG
-    const base64Data = frameCaptureCanvas.toDataURL('image/jpeg', FRAME_CAPTURE_QUALITY);
+    // Convert to base64 JPEG with high compression (quality 0.5)
+    const base64Data = frameCaptureCanvas.toDataURL('image/jpeg', 0.5);
 
-    // Send to backend
-    wsSocket.emit('frame', { image: base64Data });
+    // Convert MediaPipe landmarks to serializable array of {x, y, z}
+    const lmArray = landmarks.map(lm => ({
+        x: lm.x,
+        y: lm.y,
+        z: lm.z || 0
+    }));
+
+    // Send both image AND landmarks to backend
+    wsSocket.emit('frame', {
+        image: base64Data,
+        landmarks: lmArray
+    });
     wsLastSendTime = now;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// BUFFER FILL INDICATOR  —  Shows how many frames have been collected
-// ═══════════════════════════════════════════════════════════════════════════
-
-let _bufferIndicatorEl = null;
-
-/**
- * Create and update the buffer fill indicator in the camera overlay.
- */
-function _updateBufferIndicator(data) {
-    if (!_bufferIndicatorEl) {
-        _bufferIndicatorEl = document.createElement('div');
-        _bufferIndicatorEl.id = 'bufferIndicator';
-        _bufferIndicatorEl.style.cssText = `
-            position: absolute; bottom: 8px; left: 8px; right: 8px;
-            z-index: 4; display: flex; align-items: center; gap: 8px;
-            background: rgba(0,0,0,0.7); border-radius: 8px; padding: 6px 10px;
-            font-family: 'Inter', monospace; font-size: 0.72rem; color: #a1a1aa;
-            backdrop-filter: blur(4px);
-        `;
-        const camContainer = document.getElementById('cameraContainer');
-        if (camContainer) camContainer.appendChild(_bufferIndicatorEl);
-    }
-
-    const pct = Math.round((data.count / data.required) * 100);
-    const barColor = data.ready
-        ? 'linear-gradient(90deg, #10b981, #34d399)'
-        : 'linear-gradient(90deg, #6366f1, #818cf8)';
-    const statusText = data.ready
-        ? '🧠 Predicting...'
-        : `📹 Buffering ${data.count}/${data.required}`;
-
-    _bufferIndicatorEl.innerHTML = `
-        <span style="white-space:nowrap; min-width: 110px;">${statusText}</span>
-        <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden;">
-            <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:2px; transition: width 0.15s ease;"></div>
-        </div>
-        <span style="min-width:30px; text-align:right;">${pct}%</span>
-    `;
 }
 
 
@@ -324,7 +403,7 @@ function _createDebugPanel() {
                 <span class="debug-value debug-pct" id="debugConfPct">0%</span>
             </div>
             <div class="debug-row">
-                <span class="debug-label">Gate (>75%)</span>
+                <span class="debug-label">Gate (>65%)</span>
                 <span class="debug-value" id="debugGateStatus">--</span>
             </div>
             <div class="debug-row">
@@ -337,7 +416,7 @@ function _createDebugPanel() {
             </div>
             <div class="debug-row">
                 <span class="debug-label">Buffer</span>
-                <span class="debug-value" id="debugBuffer">${wsBufferCount}/${wsBufferRequired}</span>
+                <span class="debug-value" id="debugBuffer">0 signs</span>
             </div>
             <div class="debug-row">
                 <span class="debug-label">Pipeline</span>
@@ -383,15 +462,15 @@ function _updateDebugPanel(data) {
 
     // Prediction text
     const predEl = document.getElementById('debugPrediction');
-    if (predEl) predEl.textContent = data.word || data.raw_sign || '(none)';
+    if (predEl) predEl.textContent = data.sign || data.raw_sign || '(none)';
 
     // Raw confidence
     const rawConf = data.confidence || 0;
     const rawConfEl = document.getElementById('debugRawConf');
     if (rawConfEl) {
         rawConfEl.textContent = rawConf.toFixed(6);
-        if (rawConf >= 0.75) rawConfEl.style.color = '#10b981';
-        else if (rawConf >= 0.50) rawConfEl.style.color = '#fbbf24';
+        if (rawConf >= 0.65) rawConfEl.style.color = '#10b981';
+        else if (rawConf >= 0.40) rawConfEl.style.color = '#fbbf24';
         else rawConfEl.style.color = '#ef4444';
     }
 
@@ -401,18 +480,18 @@ function _updateDebugPanel(data) {
     const confPctEl = document.getElementById('debugConfPct');
     if (confBar) {
         confBar.style.width = confPct + '%';
-        if (confPct >= 75) confBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
-        else if (confPct >= 50) confBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
+        if (confPct >= 65) confBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+        else if (confPct >= 40) confBar.style.background = 'linear-gradient(90deg, #f59e0b, #fbbf24)';
         else confBar.style.background = 'linear-gradient(90deg, #ef4444, #f87171)';
     }
     if (confPctEl) confPctEl.textContent = confPct + '%';
 
-    // Gate status (>75%)
+    // Gate status (>65%)
     const gateEl = document.getElementById('debugGateStatus');
     if (gateEl) {
-        if (data.word) {
+        if (data.sign) {
             gateEl.innerHTML = '<span style="color:#10b981">✓ PASS</span>';
-        } else if (rawConf >= 0.75) {
+        } else if (rawConf >= 0.65) {
             gateEl.innerHTML = '<span style="color:#fbbf24">⏳ Stabilising</span>';
         } else {
             gateEl.innerHTML = '<span style="color:#ef4444">✗ BELOW</span>';
@@ -422,7 +501,7 @@ function _updateDebugPanel(data) {
     // Model type
     const modelEl = document.getElementById('debugModel');
     if (modelEl) {
-        modelEl.textContent = 'cnn_bilstm';
+        modelEl.textContent = 'isl_image';
         modelEl.style.color = '#f472b6';
     }
 
@@ -430,35 +509,36 @@ function _updateDebugPanel(data) {
     const framesEl = document.getElementById('debugFrames');
     if (framesEl) framesEl.textContent = _debugPredictionCount;
 
-    // Buffer status
+    // Buffer status — show sentence buffer count
     const bufferEl = document.getElementById('debugBuffer');
-    if (bufferEl) bufferEl.textContent = `${wsBufferCount}/${wsBufferRequired}`;
+    if (bufferEl) bufferEl.textContent = `${liveSentenceBuffer.length} signs`;
 
     // Pipeline health
     const pipeEl = document.getElementById('debugPipeline');
     if (pipeEl) {
-        if (data.word) {
+        if (data.sign) {
             pipeEl.innerHTML = '<span class="debug-dot healthy"></span> Detected ✓';
-        } else if (rawConf >= 0.75) {
+        } else if (rawConf >= 0.65) {
             pipeEl.innerHTML = '<span class="debug-dot warning"></span> Close';
-        } else if (rawConf >= 0.50) {
+        } else if (rawConf >= 0.40) {
             pipeEl.innerHTML = '<span class="debug-dot warning"></span> Low Conf';
         } else if (data.raw_sign) {
             pipeEl.innerHTML = '<span class="debug-dot danger"></span> Below Gate';
         } else {
-            pipeEl.innerHTML = '<span class="debug-dot pending"></span> Buffering';
+            pipeEl.innerHTML = '<span class="debug-dot pending"></span> Waiting';
         }
     }
 
     // Status message
     const statusEl = document.getElementById('debugStatus');
     if (statusEl) {
-        statusEl.textContent = data.status || (data.word ? 'Detected: ' + data.word : '--');
+        statusEl.textContent = data.status || (data.sign ? 'Detected: ' + data.sign : '--');
     }
 
     console.log(
         `[DIAG] #${_debugPredictionCount} | ` +
-        `word="${data.word}" raw="${data.raw_sign || ''}" | conf=${rawConf?.toFixed(6)} | ` +
+        `sign="${data.sign}" raw="${data.raw_sign || ''}" | conf=${rawConf?.toFixed(6)} | ` +
+        `buffer=[${liveSentenceBuffer.join(',')}] | ` +
         `status="${data.status || ''}"`
     );
 }
